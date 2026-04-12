@@ -4,6 +4,7 @@ const state = {
   modelMeta: null,
   isInitializing: false,
   isGenerating: false,
+  latestResultPath: "",
   voices: [],
   selectedVoiceId: "auto",
   voicePendingDeleteId: "",
@@ -117,6 +118,10 @@ function collectRefs() {
     "voiceList",
     "generateBtn",
     "resultAudio",
+    "resultMenuBtn",
+    "resultMenu",
+    "saveAudioBtn",
+    "openAudioFolderBtn",
     "voiceModal",
     "voiceNameInput",
     "voiceUploadBtn",
@@ -475,7 +480,12 @@ function updateMeta(meta) {
 }
 
 function applyResult(result) {
+  state.latestResultPath = result.outputPath;
   refs.resultAudio.src = window.studioApi.toFileUrl(result.outputPath);
+}
+
+function setResultMenuOpen(open) {
+  refs.resultMenu.classList.toggle("hidden", !open);
 }
 
 function buildGeneratePayload() {
@@ -647,6 +657,41 @@ async function bootstrap() {
   refs.doctorBtn.addEventListener("click", runDoctor);
   refs.initializeBtn.addEventListener("click", initializeModel);
   refs.generateBtn.addEventListener("click", generateAudio);
+  refs.resultMenuBtn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    setResultMenuOpen(refs.resultMenu.classList.contains("hidden"));
+  });
+  refs.saveAudioBtn.addEventListener("click", async () => {
+    if (!state.latestResultPath) {
+      addLog("当前还没有可保存的音频。", "error");
+      setResultMenuOpen(false);
+      return;
+    }
+
+    try {
+      const result = await window.studioApi.saveAudioAs({ sourcePath: state.latestResultPath });
+      if (result?.saved) {
+        addLog(`音频已另存为：${result.filePath}`, "success");
+      }
+    } catch (error) {
+      addLog(error.message, "error");
+    } finally {
+      setResultMenuOpen(false);
+    }
+  });
+  refs.openAudioFolderBtn.addEventListener("click", async () => {
+    if (!state.latestResultPath) {
+      addLog("当前还没有可定位的音频。", "error");
+      setResultMenuOpen(false);
+      return;
+    }
+
+    try {
+      await window.studioApi.showItemInFolder(state.latestResultPath);
+    } finally {
+      setResultMenuOpen(false);
+    }
+  });
   refs.speedInput.addEventListener("input", () => {
     refs.speedValue.textContent = formatSpeedValue(refs.speedInput.value);
   });
@@ -826,6 +871,8 @@ async function bootstrap() {
   });
 
   try {
+    document.addEventListener("click", () => setResultMenuOpen(false));
+
     const settings = await window.studioApi.getSettings();
     setSettingsUI(settings);
 

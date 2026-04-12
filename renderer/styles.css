@@ -366,6 +366,66 @@ summary:focus-visible {
 .result-card {
   min-height: 126px;
   padding: 16px;
+  position: relative;
+}
+
+.result-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.result-actions {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.result-menu-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--panel-soft);
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.result-menu-btn svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+
+.result-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 140px;
+  padding: 8px;
+  border: 2px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 5;
+}
+
+.result-menu.hidden {
+  display: none;
+}
+
+.result-menu-item {
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: 10px;
+  background: var(--panel-soft);
+  color: var(--text);
+  text-align: left;
+  font-weight: 700;
 }
 
 audio {

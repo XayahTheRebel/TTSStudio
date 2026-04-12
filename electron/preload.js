@@ -28,7 +28,9 @@ contextBridge.exposeInMainWorld("studioApi", {
   importVoice: (payload) => ipcRenderer.invoke("studio:import-voice", payload),
   saveRecordedVoice: (payload) => ipcRenderer.invoke("studio:save-recorded-voice", payload),
   deleteVoice: (payload) => ipcRenderer.invoke("studio:delete-voice", payload),
+  saveAudioAs: (payload) => ipcRenderer.invoke("studio:save-audio-as", payload),
   openPath: (targetPath) => ipcRenderer.invoke("studio:open-path", targetPath),
+  showItemInFolder: (targetPath) => ipcRenderer.invoke("studio:show-item-in-folder", targetPath),
   toFileUrl,
   onBackendEvent: (listener) => {
     const wrapped = (_event, payload) => listener(payload);

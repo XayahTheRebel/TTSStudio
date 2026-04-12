@@ -120,7 +120,22 @@
             <button id="generateBtn" class="generate-btn" type="button">生成音频</button>
 
             <div class="result-card">
-              <h2 class="section-title compact">输出结果</h2>
+              <div class="result-head">
+                <h2 class="section-title compact">输出结果</h2>
+                <div class="result-actions">
+                  <button id="resultMenuBtn" class="result-menu-btn" type="button" aria-label="更多操作">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                      <circle cx="12" cy="5" r="2"></circle>
+                      <circle cx="12" cy="12" r="2"></circle>
+                      <circle cx="12" cy="19" r="2"></circle>
+                    </svg>
+                  </button>
+                  <div id="resultMenu" class="result-menu hidden">
+                    <button id="saveAudioBtn" class="result-menu-item" type="button">另存为</button>
+                    <button id="openAudioFolderBtn" class="result-menu-item" type="button">打开所在位置</button>
+                  </div>
+                </div>
+              </div>
               <audio id="resultAudio" controls preload="metadata"></audio>
             </div>
           </section>

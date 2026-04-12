@@ -161,6 +161,33 @@ function deleteVoiceById({ id }) {
   return { ok: true, id };
 }
 
+function saveAudioAs({ sourcePath }) {
+  if (!sourcePath || !fs.existsSync(sourcePath)) {
+    throw new Error("Generated audio file not found.");
+  }
+
+  const defaultFileName = path.basename(sourcePath);
+  return dialog
+    .showSaveDialog({
+      title: "另存为",
+      defaultPath: defaultFileName,
+      filters: [
+        {
+          name: "Audio",
+          extensions: [path.extname(defaultFileName).replace(/^\./, "") || "wav"]
+        }
+      ]
+    })
+    .then((result) => {
+      if (result.canceled || !result.filePath) {
+        return { saved: false, filePath: "" };
+      }
+
+      fs.copyFileSync(sourcePath, result.filePath);
+      return { saved: true, filePath: result.filePath };
+    });
+}
+
 function ensureDir(dirPath) {
   fs.mkdirSync(dirPath, { recursive: true });
 }
@@ -467,6 +494,13 @@ ipcMain.handle("studio:open-path", async (_event, targetPath) => {
   await shell.openPath(targetPath);
   return true;
 });
+ipcMain.handle("studio:show-item-in-folder", async (_event, targetPath) => {
+  if (!targetPath) {
+    return false;
+  }
+  shell.showItemInFolder(targetPath);
+  return true;
+});
 ipcMain.handle("studio:get-voices", async () => getVoices());
 ipcMain.handle("studio:import-voice", async (_event, payload) =>
   importVoiceFromFile(payload || {})
@@ -476,4 +510,7 @@ ipcMain.handle("studio:save-recorded-voice", async (_event, payload) =>
 );
 ipcMain.handle("studio:delete-voice", async (_event, payload) =>
   deleteVoiceById(payload || {})
+);
+ipcMain.handle("studio:save-audio-as", async (_event, payload) =>
+  saveAudioAs(payload || {})
 );
