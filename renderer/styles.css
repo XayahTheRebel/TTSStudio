@@ -65,12 +65,18 @@ code {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 270px;
   gap: 14px;
-  align-items: start;
+  align-items: stretch;
 }
 
 .main-column,
 .side-column {
   min-width: 0;
+}
+
+.side-column .section-block {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
 .section-block + .section-block {
@@ -297,6 +303,7 @@ audio {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  flex: 1;
 }
 
 .voice-list {
