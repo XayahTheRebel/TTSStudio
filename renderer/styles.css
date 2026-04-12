@@ -93,6 +93,8 @@ code {
 .emotion-panel,
 .settings-panel {
   min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .section-title {
@@ -130,7 +132,7 @@ code {
 }
 
 .settings-card {
-  height: 100%;
+  flex: 1;
   padding: 18px;
   display: flex;
   flex-direction: column;
