@@ -14,6 +14,38 @@ const state = {
 };
 
 const refs = {};
+const LANGUAGE_LABELS = {
+  Arabic: "阿拉伯语",
+  Burmese: "缅甸语",
+  Chinese: "中文",
+  Danish: "丹麦语",
+  Dutch: "荷兰语",
+  English: "英语",
+  Finnish: "芬兰语",
+  French: "法语",
+  German: "德语",
+  Greek: "希腊语",
+  Hebrew: "希伯来语",
+  Hindi: "印地语",
+  Indonesian: "印尼语",
+  Italian: "意大利语",
+  Japanese: "日语",
+  Khmer: "高棉语",
+  Korean: "韩语",
+  Lao: "老挝语",
+  Malay: "马来语",
+  Norwegian: "挪威语",
+  Polish: "波兰语",
+  Portuguese: "葡萄牙语",
+  Russian: "俄语",
+  Spanish: "西班牙语",
+  Swahili: "斯瓦希里语",
+  Swedish: "瑞典语",
+  Tagalog: "他加禄语",
+  Thai: "泰语",
+  Turkish: "土耳其语",
+  Vietnamese: "越南语"
+};
 const LANGUAGE_OPTIONS = [
   "Arabic",
   "Burmese",
@@ -429,7 +461,7 @@ function renderLanguageOptions(languages = LANGUAGE_OPTIONS) {
   options.forEach((language) => {
     const option = document.createElement("option");
     option.value = language;
-    option.textContent = language;
+    option.textContent = LANGUAGE_LABELS[language] || language;
     refs.languageSelect.appendChild(option);
   });
 
