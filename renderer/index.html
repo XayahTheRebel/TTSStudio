@@ -72,15 +72,47 @@
           </section>
 
           <section class="section-block">
-            <h2 class="section-title">情绪描述</h2>
-            <div class="input-card">
-              <textarea
-                id="emotionInput"
-                class="editor-textarea editor-textarea-medium"
-                rows="5"
-                placeholder="描述这段文字的情绪、语气或节奏。留空时将采用模型默认表达。"
-              ></textarea>
-              <div id="emotionPresetBar" class="preset-bar"></div>
+            <div class="emotion-settings-grid">
+              <div class="emotion-panel">
+                <h2 class="section-title">情绪描述</h2>
+                <div class="input-card">
+                  <textarea
+                    id="emotionInput"
+                    class="editor-textarea editor-textarea-medium"
+                    rows="5"
+                    placeholder="描述这段文字的情绪、语气或节奏。留空时将采用模型默认表达。"
+                  ></textarea>
+                  <div id="emotionPresetBar" class="preset-bar"></div>
+                </div>
+              </div>
+
+              <div class="settings-panel">
+                <h2 class="section-title">更多设置</h2>
+                <div class="settings-card">
+                  <label class="settings-field">
+                    <span class="settings-label">语速调节</span>
+                    <div class="speed-control">
+                      <input
+                        id="speedInput"
+                        class="speed-slider"
+                        type="range"
+                        min="0.5"
+                        max="2"
+                        step="0.1"
+                        value="1"
+                      />
+                      <span id="speedValue" class="speed-value">1.0x</span>
+                    </div>
+                  </label>
+
+                  <label class="settings-field">
+                    <span class="settings-label">语言</span>
+                    <select id="languageSelect" class="settings-select">
+                      <option value="">自动识别</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
             </div>
           </section>
 

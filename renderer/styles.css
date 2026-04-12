@@ -83,6 +83,18 @@ code {
   margin-top: 12px;
 }
 
+.emotion-settings-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 14px;
+  align-items: stretch;
+}
+
+.emotion-panel,
+.settings-panel {
+  min-width: 0;
+}
+
 .section-title {
   margin: 0 0 10px;
   font-family: var(--font-heading);
@@ -99,7 +111,8 @@ code {
 .device-card,
 .input-card,
 .result-card,
-.voice-panel {
+.voice-panel,
+.settings-card {
   border: 2px solid var(--line);
   border-radius: var(--radius-lg);
   background: var(--panel);
@@ -114,6 +127,14 @@ code {
 .input-card {
   padding: 0;
   overflow: hidden;
+}
+
+.settings-card {
+  height: 100%;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 
 .device-actions {
@@ -246,6 +267,52 @@ textarea::placeholder {
 .meta-label {
   font-size: 13px;
   font-weight: 700;
+}
+
+.settings-field {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.settings-label {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.speed-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.speed-slider {
+  width: 100%;
+  accent-color: var(--accent-dark);
+}
+
+.speed-value {
+  min-width: 56px;
+  min-height: 42px;
+  padding: 0 12px;
+  border-radius: 12px;
+  background: var(--panel-soft);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+}
+
+.settings-select {
+  width: 100%;
+  min-height: 48px;
+  border: 2px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel);
+  color: var(--text);
+  padding: 0 14px;
+  outline: none;
 }
 
 textarea {
@@ -532,6 +599,10 @@ audio {
 
   .voice-panel {
     min-height: auto;
+  }
+
+  .emotion-settings-grid {
+    grid-template-columns: 1fr;
   }
 }
 

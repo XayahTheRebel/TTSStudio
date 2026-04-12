@@ -23,6 +23,7 @@ STATE: dict[str, Any] = {
     "model": None,
     "torch": None,
     "soundfile": None,
+    "librosa": None,
     "settings": {},
     "meta": {},
 }
@@ -292,9 +293,16 @@ class GenerateRequest:
     clone_style: str | None
     file_stem: str | None
     settings: dict[str, Any]
+    speed_ratio: float
 
 
 def to_request(payload: dict[str, Any]) -> GenerateRequest:
+    raw_speed_ratio = payload.get("speedRatio", 1.0)
+    try:
+        speed_ratio = float(raw_speed_ratio)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("Speed ratio must be a number.") from exc
+
     return GenerateRequest(
         mode=(payload.get("mode") or "auto").strip(),
         text=(payload.get("text") or "").strip(),
@@ -305,6 +313,7 @@ def to_request(payload: dict[str, Any]) -> GenerateRequest:
         clone_style=(payload.get("cloneStyle") or "").strip() or None,
         file_stem=(payload.get("fileStem") or "").strip() or None,
         settings=payload.get("settings") or {},
+        speed_ratio=speed_ratio,
     )
 
 
@@ -325,6 +334,30 @@ def apply_style_prefix(text: str, instruction: str | None) -> str:
     return f"({instruction}){text}"
 
 
+def compose_instruction(language: str | None, instruction: str | None) -> str | None:
+    parts: list[str] = []
+    if language:
+        parts.append(f"Speak in {language}")
+    if instruction:
+        parts.append(instruction)
+    return ", ".join(parts) or None
+
+
+def apply_speed_ratio(wav, speed_ratio: float):
+    if abs(speed_ratio - 1.0) < 1e-6:
+        return wav
+
+    if not 0.5 <= speed_ratio <= 2.0:
+        raise ValueError("Speed ratio must be between 0.5 and 2.0.")
+
+    librosa_mod = STATE["librosa"]
+    if librosa_mod is None:
+        librosa_mod = importlib.import_module("librosa")
+        STATE["librosa"] = librosa_mod
+
+    return librosa_mod.effects.time_stretch(wav.astype("float32"), rate=speed_ratio)
+
+
 def action_generate(payload: dict[str, Any]) -> dict[str, Any]:
     if not STATE["ready"]:
         raise RuntimeError("Model is not initialized yet.")
@@ -338,6 +371,8 @@ def action_generate(payload: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("Reference audio is required in clone mode.")
     if req.mode == "clone" and req.ref_text and req.clone_style:
         raise ValueError("Ultimate cloning and clone style control should not be used together.")
+    if not 0.5 <= req.speed_ratio <= 2.0:
+        raise ValueError("Speed ratio must be between 0.5 and 2.0.")
 
     runtime_settings = normalize_settings(payload.get("runtimeSettings") or STATE["settings"])
     os.makedirs(runtime_settings["outputDir"], exist_ok=True)
@@ -361,14 +396,19 @@ def action_generate(payload: dict[str, Any]) -> dict[str, Any]:
     }
 
     if req.mode == "design":
-        final_text = apply_style_prefix(req.text, req.instruct)
+        final_text = apply_style_prefix(req.text, compose_instruction(req.language, req.instruct))
+    elif req.mode == "auto" and req.language:
+        final_text = apply_style_prefix(req.text, compose_instruction(req.language, None))
     elif req.mode == "clone":
         kwargs["reference_wav_path"] = req.ref_audio
         if req.ref_text:
             kwargs["prompt_wav_path"] = req.ref_audio
             kwargs["prompt_text"] = req.ref_text
         else:
-            final_text = apply_style_prefix(req.text, req.clone_style)
+            final_text = apply_style_prefix(
+                req.text,
+                compose_instruction(req.language, req.clone_style),
+            )
 
     emit_event(
         "log",
@@ -380,6 +420,7 @@ def action_generate(payload: dict[str, Any]) -> dict[str, Any]:
     started = time.perf_counter()
     wav = model.generate(text=final_text, **kwargs)
     sample_rate = model.tts_model.sample_rate
+    wav = apply_speed_ratio(wav, req.speed_ratio)
     soundfile_mod.write(output_path, wav, sample_rate)
     elapsed = round(time.perf_counter() - started, 2)
     duration_seconds = round(len(wav) / sample_rate, 2)
@@ -398,6 +439,7 @@ def action_generate(payload: dict[str, Any]) -> dict[str, Any]:
         "elapsedSeconds": elapsed,
         "mode": req.mode,
         "language": req.language or "Auto",
+        "speedRatio": req.speed_ratio,
         "usedInstruction": req.instruct or "",
         "usedCloneStyle": req.clone_style or "",
         "usedReferenceAudio": req.ref_audio or "",

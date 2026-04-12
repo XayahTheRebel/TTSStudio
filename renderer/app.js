@@ -14,6 +14,38 @@ const state = {
 };
 
 const refs = {};
+const LANGUAGE_OPTIONS = [
+  "Arabic",
+  "Burmese",
+  "Chinese",
+  "Danish",
+  "Dutch",
+  "English",
+  "Finnish",
+  "French",
+  "German",
+  "Greek",
+  "Hebrew",
+  "Hindi",
+  "Indonesian",
+  "Italian",
+  "Japanese",
+  "Khmer",
+  "Korean",
+  "Lao",
+  "Malay",
+  "Norwegian",
+  "Polish",
+  "Portuguese",
+  "Russian",
+  "Spanish",
+  "Swahili",
+  "Swedish",
+  "Tagalog",
+  "Thai",
+  "Turkish",
+  "Vietnamese"
+];
 const EMOTION_PRESETS = [
   "温柔",
   "开心活泼",
@@ -47,6 +79,9 @@ function collectRefs() {
     "textInput",
     "emotionInput",
     "emotionPresetBar",
+    "speedInput",
+    "speedValue",
+    "languageSelect",
     "voiceList",
     "generateBtn",
     "resultAudio",
@@ -382,9 +417,29 @@ function renderEmotionPresets() {
   });
 }
 
+function formatSpeedValue(value) {
+  return `${Number(value).toFixed(1)}x`;
+}
+
+function renderLanguageOptions(languages = LANGUAGE_OPTIONS) {
+  const options = Array.isArray(languages) && languages.length ? languages : LANGUAGE_OPTIONS;
+  const currentValue = refs.languageSelect.value;
+  refs.languageSelect.innerHTML = '<option value="">自动识别</option>';
+
+  options.forEach((language) => {
+    const option = document.createElement("option");
+    option.value = language;
+    option.textContent = language;
+    refs.languageSelect.appendChild(option);
+  });
+
+  refs.languageSelect.value = options.includes(currentValue) ? currentValue : "";
+}
+
 function updateMeta(meta) {
   state.modelMeta = meta;
   refs.deviceBadge.textContent = `${meta.device} / ${meta.dtype}`;
+  renderLanguageOptions(meta.languages);
 }
 
 function applyResult(result) {
@@ -394,31 +449,35 @@ function applyResult(result) {
 function buildGeneratePayload() {
   const emotion = refs.emotionInput.value.trim();
   const selectedVoice = getSelectedVoice();
+  const speedRatio = Number.parseFloat(refs.speedInput.value || "1");
+  const language = refs.languageSelect.value || "";
 
   if (selectedVoice.kind === "custom") {
     return {
       mode: "clone",
       text: refs.textInput.value.trim(),
-      language: "",
+      language,
       refAudio: selectedVoice.audioPath,
       refText: "",
       instruct: "",
       cloneStyle: emotion,
       fileStem: "",
-      settings: {}
+      settings: {},
+      speedRatio
     };
   }
 
   return {
     mode: emotion ? "design" : "auto",
     text: refs.textInput.value.trim(),
-    language: "",
+    language,
     refAudio: "",
     refText: "",
     instruct: emotion,
     cloneStyle: "",
     fileStem: "",
-    settings: {}
+    settings: {},
+    speedRatio
   };
 }
 
@@ -550,10 +609,15 @@ async function bootstrap() {
   setDiagnosticPanel(false);
   setStartupState("正在准备模型环境", "应用会自动检测设备并尝试加载 VoxCPM2。", "启动中", "busy");
   renderEmotionPresets();
+  renderLanguageOptions();
+  refs.speedValue.textContent = formatSpeedValue(refs.speedInput.value);
 
   refs.doctorBtn.addEventListener("click", runDoctor);
   refs.initializeBtn.addEventListener("click", initializeModel);
   refs.generateBtn.addEventListener("click", generateAudio);
+  refs.speedInput.addEventListener("input", () => {
+    refs.speedValue.textContent = formatSpeedValue(refs.speedInput.value);
+  });
   refs.voiceNameInput.addEventListener("input", syncVoiceConfirmState);
   refs.voiceCancelBtn.addEventListener("click", async () => {
     await stopActiveRecording();
