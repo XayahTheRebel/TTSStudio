@@ -1,0 +1,9 @@
+node_modules/
+.venv/
+dist/
+release/
+outputs/
+models/
+__pycache__/
+*.pyc
+*.log

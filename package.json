@@ -1,0 +1,24 @@
+{
+  "name": "voxcpm-studio",
+  "version": "0.1.0",
+  "description": "Electron desktop app for VoxCPM2 local inference via Node.js and Python Shell.",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron .",
+    "install:backend": "powershell.exe -ExecutionPolicy Bypass -File .\\scripts\\install-backend.ps1",
+    "check:backend": "python backend/worker.py --doctor"
+  },
+  "keywords": [
+    "electron",
+    "tts",
+    "voxcpm",
+    "python-shell"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "electron": "^37.2.0",
+    "python-shell": "^5.0.0"
+  }
+}

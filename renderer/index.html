@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; style-src 'self' 'unsafe-inline'; media-src 'self' file: data: blob:; img-src 'self' data: blob:;"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>VoxCPM Studio</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <main class="studio-grid">
+        <section class="main-column">
+          <section class="section-block">
+            <h2 class="section-title">设备信息</h2>
+            <div class="device-card">
+              <div class="device-actions">
+                <span id="workerState" class="pill pill-idle">未初始化</span>
+                <span id="deviceBadge" class="pill pill-idle">设备待检测</span>
+                <span id="startupBadge" class="pill pill-idle">等待启动</span>
+                <button id="openOutputBtn" class="surface-btn" type="button">打开输出目录</button>
+              </div>
+
+              <details id="diagnosticPanel" class="diagnostic-panel hidden">
+                <summary>诊断与日志</summary>
+                <p class="diagnostic-copy">
+                  自动启动失败时，再到这里查看路径、依赖和运行日志。
+                </p>
+                <div class="diagnostic-grid">
+                  <div class="diagnostic-item">
+                    <span class="meta-label">Python</span>
+                    <code id="pythonPathText">检测中...</code>
+                  </div>
+                  <div class="diagnostic-item">
+                    <span class="meta-label">模型目录</span>
+                    <code id="modelDirText">检测中...</code>
+                  </div>
+                  <div class="diagnostic-item">
+                    <span class="meta-label">源码目录</span>
+                    <code id="sourceDirText">检测中...</code>
+                  </div>
+                  <div class="diagnostic-item">
+                    <span class="meta-label">输出目录</span>
+                    <code id="outputDirText">检测中...</code>
+                  </div>
+                </div>
+
+                <div class="device-actions">
+                  <button id="doctorBtn" class="surface-btn" type="button">重新检测环境</button>
+                  <button id="initializeBtn" class="surface-btn" type="button">重新加载模型</button>
+                  <button id="clearLogBtn" class="surface-btn" type="button">清空日志</button>
+                </div>
+
+                <div id="logConsole" class="log-console"></div>
+              </details>
+            </div>
+          </section>
+
+          <section class="section-block">
+            <h2 class="section-title">文本转语音</h2>
+            <div class="input-card">
+              <textarea
+                id="textInput"
+                class="editor-textarea editor-textarea-tall"
+                rows="8"
+                placeholder="请输入想要朗读的文字内容"
+              ></textarea>
+            </div>
+          </section>
+
+          <section class="section-block">
+            <h2 class="section-title">情绪描述</h2>
+            <div class="input-card">
+              <textarea
+                id="emotionInput"
+                class="editor-textarea editor-textarea-medium"
+                rows="5"
+                placeholder="描述这段文字的情绪、语气或节奏。留空时将采用模型默认表达。"
+              ></textarea>
+              <div id="emotionPresetBar" class="preset-bar"></div>
+            </div>
+          </section>
+
+          <section class="section-block output-block">
+            <button id="generateBtn" class="generate-btn" type="button">生成音频</button>
+
+            <div class="result-card">
+              <h2 class="section-title compact">输出结果</h2>
+              <audio id="resultAudio" controls preload="metadata"></audio>
+            </div>
+          </section>
+        </section>
+
+        <aside class="side-column">
+          <section class="section-block">
+            <h2 class="section-title">音色选择</h2>
+            <div class="voice-panel">
+              <div id="voiceList" class="voice-list"></div>
+            </div>
+          </section>
+        </aside>
+      </main>
+    </div>
+
+    <div id="voiceModal" class="modal-backdrop hidden">
+      <div class="modal-card">
+        <div class="modal-head">
+          <h2 class="section-title compact">添加音色</h2>
+        </div>
+
+        <label class="modal-field">
+          <span>音色名称</span>
+          <input id="voiceNameInput" type="text" maxlength="6" placeholder="例如：我的音色1" />
+        </label>
+
+        <div class="modal-actions">
+          <button id="voiceUploadBtn" class="surface-btn" type="button">上传音频</button>
+          <button id="voiceRecordBtn" class="surface-btn" type="button">开始录音</button>
+          <button id="voiceStopBtn" class="surface-btn" type="button" disabled>停止录音</button>
+          <button id="voiceClearBtn" class="surface-btn muted-btn" type="button">清空来源</button>
+        </div>
+
+        <div id="voiceSourceStatus" class="modal-status">请选择一段音频，或者录制一段新的音频。</div>
+        <audio id="voicePreviewAudio" class="voice-preview" controls preload="metadata"></audio>
+
+        <div class="modal-footer">
+          <button id="voiceCancelBtn" class="surface-btn muted-btn" type="button">取消</button>
+          <button id="voiceConfirmBtn" class="surface-btn" type="button" disabled>确认添加</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="deleteVoiceModal" class="modal-backdrop hidden">
+      <div class="modal-card modal-card-compact">
+        <div class="modal-head">
+          <h2 class="section-title compact">删除音色</h2>
+        </div>
+        <div id="deleteVoiceMessage" class="modal-status">
+          确认要删除这个音色吗？删除后不可恢复。
+        </div>
+        <div class="modal-footer">
+          <button id="deleteVoiceCancelBtn" class="surface-btn muted-btn" type="button">取消</button>
+          <button id="deleteVoiceConfirmBtn" class="surface-btn danger-btn" type="button">确认删除</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
