@@ -363,6 +363,11 @@ summary:focus-visible {
   transition: transform 150ms ease;
 }
 
+.generate-btn-busy {
+  background: var(--accent-soft);
+  color: #0c1403;
+}
+
 .result-card {
   min-height: 126px;
   padding: 16px;
@@ -372,19 +377,27 @@ summary:focus-visible {
 .result-head {
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
   gap: 12px;
+}
+
+.result-player-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  margin-top: 8px;
 }
 
 .result-actions {
   position: relative;
   flex-shrink: 0;
+  order: 2;
 }
 
 .result-menu-btn {
   width: 40px;
   height: 40px;
-  border-radius: 12px;
+  border-radius: 999px;
   background: var(--panel-soft);
   color: var(--text);
   display: inline-flex;
@@ -400,7 +413,7 @@ summary:focus-visible {
 
 .result-menu {
   position: absolute;
-  top: calc(100% + 8px);
+  bottom: calc(100% + 8px);
   right: 0;
   min-width: 140px;
   padding: 8px;
@@ -430,7 +443,7 @@ summary:focus-visible {
 
 audio {
   width: 100%;
-  margin-top: 8px;
+  margin-top: 0;
 }
 
 .voice-panel {

@@ -26,6 +26,10 @@ function getVoiceLibraryDir() {
   return path.join(app.getPath("userData"), "voices");
 }
 
+function getPreviewOutputDir() {
+  return path.join(app.getPath("userData"), "preview-output");
+}
+
 function getVoiceLibraryIndexPath() {
   return path.join(getVoiceLibraryDir(), "voices.json");
 }
@@ -192,6 +196,18 @@ function ensureDir(dirPath) {
   fs.mkdirSync(dirPath, { recursive: true });
 }
 
+function clearPreviewOutputs() {
+  const previewDir = getPreviewOutputDir();
+  if (!fs.existsSync(previewDir)) {
+    return;
+  }
+
+  for (const entry of fs.readdirSync(previewDir)) {
+    const entryPath = path.join(previewDir, entry);
+    fs.rmSync(entryPath, { recursive: true, force: true });
+  }
+}
+
 function getSettingsPath() {
   return path.join(app.getPath("userData"), "settings.json");
 }
@@ -207,6 +223,15 @@ function readSettings() {
     const next = { ...DEFAULT_SETTINGS, ...parsed };
     if (
       typeof next.modelDir === "string" &&
+      (
+        next.modelDir.includes("VoxCPM1.5") ||
+        next.modelDir.includes("VoxCPM-0.5B")
+      )
+    ) {
+      next.modelDir = DEFAULT_SETTINGS.modelDir;
+    }
+    if (
+      typeof next.modelDir === "string" &&
       next.modelDir.includes("OmniVoice-HF")
     ) {
       next.modelDir = DEFAULT_SETTINGS.modelDir;
@@ -216,6 +241,9 @@ function readSettings() {
       next.sourceDir.includes("OmniVoice")
     ) {
       next.sourceDir = DEFAULT_SETTINGS.sourceDir;
+    }
+    if ("modelPreset" in next) {
+      delete next.modelPreset;
     }
     return next;
   } catch {
@@ -378,9 +406,16 @@ class OmniVoiceService {
   }
 
   async generate(payload) {
+    const previewDir = getPreviewOutputDir();
+    ensureDir(previewDir);
+    clearPreviewOutputs();
+
     return this.request("generate", {
       ...payload,
-      runtimeSettings: this.settings
+      runtimeSettings: {
+        ...this.settings,
+        previewOutputDir: previewDir
+      }
     });
   }
 
@@ -390,6 +425,7 @@ class OmniVoiceService {
 
   async stop() {
     if (!this.shell) {
+      clearPreviewOutputs();
       return;
     }
     try {
@@ -397,6 +433,7 @@ class OmniVoiceService {
     } catch {
       // Ignore shutdown races.
     }
+    clearPreviewOutputs();
     this.shell = null;
   }
 
@@ -437,6 +474,8 @@ function createWindow() {
 
 app.whenReady().then(() => {
   ensureDir(OUTPUT_DIR);
+  ensureDir(getPreviewOutputDir());
+  clearPreviewOutputs();
   createWindow();
 
   app.on("activate", () => {
@@ -469,7 +508,7 @@ ipcMain.handle("studio:pick-ref-audio", async () => {
     filters: [
       {
         name: "Audio",
-        extensions: ["wav", "flac"]
+        extensions: ["wav", "flac", "mp3", "ogg", "m4a"]
       }
     ]
   });

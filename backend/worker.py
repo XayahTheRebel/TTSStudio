@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import sys
+import tempfile
 import time
 import traceback
 from dataclasses import dataclass
@@ -24,6 +25,8 @@ STATE: dict[str, Any] = {
     "torch": None,
     "soundfile": None,
     "librosa": None,
+    "numpy": None,
+    "pydub": None,
     "settings": {},
     "meta": {},
 }
@@ -134,11 +137,13 @@ def normalize_settings(payload: dict[str, Any]) -> dict[str, Any]:
     model_dir = payload.get("modelDir") or ""
     source_dir = payload.get("sourceDir") or ""
     output_dir = payload.get("outputDir") or ""
+    preview_output_dir = payload.get("previewOutputDir") or ""
     python_path = payload.get("pythonPath") or sys.executable
     return {
         "modelDir": str(Path(model_dir).resolve()) if model_dir else "",
         "sourceDir": str(Path(source_dir).resolve()) if source_dir else "",
         "outputDir": str(Path(output_dir).resolve()) if output_dir else "",
+        "previewOutputDir": str(Path(preview_output_dir).resolve()) if preview_output_dir else "",
         "pythonPath": python_path,
         "devicePreference": payload.get("devicePreference") or "auto",
     }
@@ -358,6 +363,62 @@ def apply_speed_ratio(wav, speed_ratio: float):
     return librosa_mod.effects.time_stretch(wav.astype("float32"), rate=speed_ratio)
 
 
+def _ensure_numpy():
+    numpy_mod = STATE["numpy"]
+    if numpy_mod is None:
+        numpy_mod = importlib.import_module("numpy")
+        STATE["numpy"] = numpy_mod
+    return numpy_mod
+
+
+def _ensure_pydub():
+    pydub_mod = STATE["pydub"]
+    if pydub_mod is None:
+        pydub_mod = importlib.import_module("pydub")
+        STATE["pydub"] = pydub_mod
+    return pydub_mod
+
+
+def load_reference_audio(reference_path: str):
+    numpy_mod = _ensure_numpy()
+    soundfile_mod = STATE["soundfile"]
+
+    try:
+        wav, sample_rate = soundfile_mod.read(reference_path, always_2d=False)
+        wav = numpy_mod.asarray(wav, dtype="float32")
+    except Exception:
+        pydub_mod = _ensure_pydub()
+        audio = pydub_mod.AudioSegment.from_file(reference_path)
+        audio = audio.set_channels(1)
+        sample_rate = int(audio.frame_rate)
+        wav = numpy_mod.asarray(audio.get_array_of_samples(), dtype="float32")
+        scale = float(1 << (8 * audio.sample_width - 1))
+        if scale > 0:
+            wav = wav / scale
+
+    if getattr(wav, "ndim", 1) > 1:
+        wav = wav.mean(axis=1)
+
+    if sample_rate != 16000:
+        librosa_mod = STATE["librosa"]
+        if librosa_mod is None:
+            librosa_mod = importlib.import_module("librosa")
+            STATE["librosa"] = librosa_mod
+        wav = librosa_mod.resample(wav.astype("float32"), orig_sr=sample_rate, target_sr=16000)
+        sample_rate = 16000
+
+    return wav.astype("float32"), sample_rate
+
+
+def prepare_reference_wav(reference_path: str) -> str:
+    soundfile_mod = STATE["soundfile"]
+    wav, sample_rate = load_reference_audio(reference_path)
+    fd, temp_path = tempfile.mkstemp(suffix=".wav")
+    os.close(fd)
+    soundfile_mod.write(temp_path, wav, sample_rate)
+    return temp_path
+
+
 def action_generate(payload: dict[str, Any]) -> dict[str, Any]:
     if not STATE["ready"]:
         raise RuntimeError("Model is not initialized yet.")
@@ -375,9 +436,10 @@ def action_generate(payload: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("Speed ratio must be between 0.5 and 2.0.")
 
     runtime_settings = normalize_settings(payload.get("runtimeSettings") or STATE["settings"])
-    os.makedirs(runtime_settings["outputDir"], exist_ok=True)
+    preview_dir = runtime_settings["previewOutputDir"] or runtime_settings["outputDir"]
+    os.makedirs(preview_dir, exist_ok=True)
     file_name = sanitize_stem(req.file_stem)
-    output_path = os.path.join(runtime_settings["outputDir"], f"{file_name}.wav")
+    output_path = os.path.join(preview_dir, f"{file_name}.wav")
 
     defaults = {**DEFAULTS, **req.settings}
     model = STATE["model"]
@@ -395,14 +457,17 @@ def action_generate(payload: dict[str, Any]) -> dict[str, Any]:
         "retry_badcase_ratio_threshold": float(defaults["retry_badcase_ratio_threshold"]),
     }
 
+    temp_reference_wav = ""
+
     if req.mode == "design":
         final_text = apply_style_prefix(req.text, compose_instruction(req.language, req.instruct))
     elif req.mode == "auto" and req.language:
         final_text = apply_style_prefix(req.text, compose_instruction(req.language, None))
     elif req.mode == "clone":
-        kwargs["reference_wav_path"] = req.ref_audio
+        temp_reference_wav = prepare_reference_wav(req.ref_audio)
+        kwargs["reference_wav_path"] = temp_reference_wav
         if req.ref_text:
-            kwargs["prompt_wav_path"] = req.ref_audio
+            kwargs["prompt_wav_path"] = temp_reference_wav
             kwargs["prompt_text"] = req.ref_text
         else:
             final_text = apply_style_prefix(
@@ -418,10 +483,14 @@ def action_generate(payload: dict[str, Any]) -> dict[str, Any]:
         },
     )
     started = time.perf_counter()
-    wav = model.generate(text=final_text, **kwargs)
-    sample_rate = model.tts_model.sample_rate
-    wav = apply_speed_ratio(wav, req.speed_ratio)
-    soundfile_mod.write(output_path, wav, sample_rate)
+    try:
+        wav = model.generate(text=final_text, **kwargs)
+        sample_rate = model.tts_model.sample_rate
+        wav = apply_speed_ratio(wav, req.speed_ratio)
+        soundfile_mod.write(output_path, wav, sample_rate)
+    finally:
+        if temp_reference_wav and os.path.exists(temp_reference_wav):
+            os.remove(temp_reference_wav)
     elapsed = round(time.perf_counter() - started, 2)
     duration_seconds = round(len(wav) / sample_rate, 2)
 
@@ -434,6 +503,7 @@ def action_generate(payload: dict[str, Any]) -> dict[str, Any]:
     )
     return {
         "outputPath": output_path,
+        "isTemporary": bool(runtime_settings["previewOutputDir"]),
         "samplingRate": sample_rate,
         "durationSeconds": duration_seconds,
         "elapsedSeconds": elapsed,

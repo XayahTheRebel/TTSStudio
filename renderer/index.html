@@ -66,7 +66,7 @@
                 id="textInput"
                 class="editor-textarea editor-textarea-tall"
                 rows="8"
-                placeholder="请输入想要朗读的文字内容"
+                placeholder="请输入想要朗读的文本内容"
               ></textarea>
             </div>
           </section>
@@ -80,7 +80,7 @@
                     id="emotionInput"
                     class="editor-textarea editor-textarea-medium"
                     rows="5"
-                    placeholder="描述这段文字的情绪、语气或节奏。留空时将采用模型默认表达。"
+                    placeholder="描述这段文本的情绪、语气或状态。留空时将使用默认高质量风格描述。"
                   ></textarea>
                   <div id="emotionPresetBar" class="preset-bar"></div>
                 </div>
@@ -93,7 +93,23 @@
                     <span class="settings-label">语速调节</span>
                     <div class="speed-control">
                       <input
-                        id="speedInput"
+                        id="speechSpeedInput"
+                        class="speed-slider"
+                        type="range"
+                        min="1"
+                        max="5"
+                        step="1"
+                        value="3"
+                      />
+                      <span id="speechSpeedValue" class="speed-value">语速中等</span>
+                    </div>
+                  </label>
+
+                  <label class="settings-field">
+                    <span class="settings-label">音频速度调节</span>
+                    <div class="speed-control">
+                      <input
+                        id="audioSpeedInput"
                         class="speed-slider"
                         type="range"
                         min="0.5"
@@ -101,15 +117,8 @@
                         step="0.1"
                         value="1"
                       />
-                      <span id="speedValue" class="speed-value">1.0x</span>
+                      <span id="audioSpeedValue" class="speed-value">1.0x</span>
                     </div>
-                  </label>
-
-                  <label class="settings-field">
-                    <span class="settings-label">语言</span>
-                    <select id="languageSelect" class="settings-select">
-                      <option value="">自动识别</option>
-                    </select>
                   </label>
                 </div>
               </div>
@@ -122,6 +131,15 @@
             <div class="result-card">
               <div class="result-head">
                 <h2 class="section-title compact">输出结果</h2>
+              </div>
+              <div class="result-player-row">
+                <audio
+                  id="resultAudio"
+                  controls
+                  controlsList="nodownload noplaybackrate noremoteplayback"
+                  disableRemotePlayback
+                  preload="metadata"
+                ></audio>
                 <div class="result-actions">
                   <button id="resultMenuBtn" class="result-menu-btn" type="button" aria-label="更多操作">
                     <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -132,11 +150,9 @@
                   </button>
                   <div id="resultMenu" class="result-menu hidden">
                     <button id="saveAudioBtn" class="result-menu-item" type="button">另存为</button>
-                    <button id="openAudioFolderBtn" class="result-menu-item" type="button">打开所在位置</button>
                   </div>
                 </div>
               </div>
-              <audio id="resultAudio" controls preload="metadata"></audio>
             </div>
           </section>
         </section>
@@ -170,8 +186,17 @@
           <button id="voiceClearBtn" class="surface-btn muted-btn" type="button">清空来源</button>
         </div>
 
-        <div id="voiceSourceStatus" class="modal-status">请选择一段音频，或者录制一段新的音频。</div>
-        <audio id="voicePreviewAudio" class="voice-preview" controls preload="metadata"></audio>
+        <div id="voiceSourceStatus" class="modal-status">
+          请选择一段音频（支持 WAV、FLAC、MP3、OGG、M4A），或者录制一段新的音频。
+        </div>
+        <audio
+          id="voicePreviewAudio"
+          class="voice-preview"
+          controls
+          controlsList="nodownload noplaybackrate noremoteplayback"
+          disableRemotePlayback
+          preload="metadata"
+        ></audio>
 
         <div class="modal-footer">
           <button id="voiceCancelBtn" class="surface-btn muted-btn" type="button">取消</button>

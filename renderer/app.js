@@ -5,6 +5,7 @@ const state = {
   isInitializing: false,
   isGenerating: false,
   latestResultPath: "",
+  latestResultTemporary: false,
   voices: [],
   selectedVoiceId: "auto",
   voicePendingDeleteId: "",
@@ -90,6 +91,33 @@ const EMOTION_PRESETS = [
   "放慢语速"
 ];
 
+const SPEECH_SPEED_PRESETS = [
+  { value: "1", label: "语速很慢", prompt: "very slow speaking pace" },
+  { value: "2", label: "语速较慢", prompt: "slightly slow speaking pace" },
+  { value: "3", label: "语速中等", prompt: "moderate speaking pace" },
+  { value: "4", label: "语速较快", prompt: "slightly fast speaking pace" },
+  { value: "5", label: "语速非常快", prompt: "very fast speaking pace" }
+];
+
+const DEFAULT_STYLE_DESCRIPTION = [
+  "clear and professional voice",
+  "warm and calm tone",
+  "relaxed and natural expression"
+].join(", ");
+
+EMOTION_PRESETS.splice(
+  0,
+  EMOTION_PRESETS.length,
+  { label: "温柔", text: "温柔、轻缓、亲切，声音柔和细腻，带安抚感和耐心，说话轻轻落下，自然不生硬。" },
+  { label: "开心活泼", text: "轻快、明亮、活泼，声音有笑意和弹性，情绪外放自然，带明显的愉悦感和亲和力。" },
+  { label: "冷静克制", text: "冷静、克制、稳定，声音平稳清晰，起伏收敛，措辞理性，表达有分寸，不过度渲染情绪。" },
+  { label: "伤感", text: "低落、失落、压抑，声音偏轻偏弱，尾音微微下沉，带一点鼻音和隐忍感，像在努力压住情绪。" },
+  { label: "紧张", text: "紧张、谨慎、不安，声音微微发紧，呼吸略急，语句之间带一点停顿和迟疑，像在强撑着保持镇定。" },
+  { label: "惊讶", text: "明显惊讶，声音瞬间抬高，反应直接，语气里带突然被触动的起伏感，但整体仍保持自然真实。" },
+  { label: "严肃", text: "严肃、郑重、认真，声音清晰有力，节奏稳定，表达明确克制，带一点正式感和压迫感。" },
+  { label: "受伤", text: "极度痛苦、虚弱、恐惧、带哭腔，说话断断续续，夹杂明显的受伤喘息和压抑的哭声。" }
+);
+
 function $(id) {
   return document.getElementById(id);
 }
@@ -112,16 +140,16 @@ function collectRefs() {
     "textInput",
     "emotionInput",
     "emotionPresetBar",
-    "speedInput",
-    "speedValue",
-    "languageSelect",
+    "speechSpeedInput",
+    "speechSpeedValue",
+    "audioSpeedInput",
+    "audioSpeedValue",
     "voiceList",
     "generateBtn",
     "resultAudio",
     "resultMenuBtn",
     "resultMenu",
     "saveAudioBtn",
-    "openAudioFolderBtn",
     "voiceModal",
     "voiceNameInput",
     "voiceUploadBtn",
@@ -163,6 +191,10 @@ function setDiagnosticPanel(visible, open = visible) {
 function setStartupState(_title, _description, badgeText, variant = "idle") {
   refs.startupBadge.textContent = badgeText;
   refs.startupBadge.className = `pill pill-${variant}`;
+}
+
+function setGenerateButtonBusy(isBusy) {
+  refs.generateBtn.classList.toggle("generate-btn-busy", isBusy);
 }
 
 function setSettingsUI(settings) {
@@ -520,6 +552,186 @@ function buildGeneratePayload() {
     fileStem: "",
     settings: {},
     speedRatio
+  };
+}
+
+function getDefaultVoice() {
+  return {
+    id: "auto",
+    name: "自动音色",
+    description: "",
+    kind: "auto"
+  };
+}
+
+function describeVoice(voice) {
+  if (voice.source === "recording") {
+    return "来源：录音";
+  }
+  return "来源：上传音频";
+}
+
+function renderVoiceList() {
+  refs.voiceList.innerHTML = "";
+
+  state.voices.forEach((voice) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `voice-card${state.selectedVoiceId === voice.id ? " voice-card-active" : ""}`;
+    button.addEventListener("click", () => {
+      state.selectedVoiceId = voice.id;
+      renderVoiceList();
+    });
+
+    const content = document.createElement("div");
+    content.className = "voice-card-content";
+    content.innerHTML = voice.description
+      ? `
+        <strong>${voice.name}</strong>
+        <span>${voice.description}</span>
+      `
+      : `
+        <strong>${voice.name}</strong>
+      `;
+    button.appendChild(content);
+
+    if (voice.kind === "custom") {
+      const deleteButton = document.createElement("button");
+      deleteButton.type = "button";
+      deleteButton.className = "voice-delete-btn";
+      deleteButton.setAttribute("aria-label", `删除音色 ${voice.name}`);
+      deleteButton.innerHTML = `
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M9 3h6l1 2h4v2H4V5h4l1-2zm1 6h2v8h-2V9zm4 0h2v8h-2V9zM7 9h2v8H7V9zm1 12c-1.1 0-2-.9-2-2V8h12v11c0 1.1-.9 2-2 2H8z"></path>
+        </svg>
+      `;
+      deleteButton.addEventListener("click", (event) => {
+        event.stopPropagation();
+        state.voicePendingDeleteId = voice.id;
+        refs.deleteVoiceMessage.textContent = `确认删除音色“${voice.name}”吗？删除后不可恢复。`;
+        refs.deleteVoiceModal.classList.remove("hidden");
+      });
+      button.appendChild(deleteButton);
+    }
+
+    refs.voiceList.appendChild(button);
+  });
+
+  const addButton = document.createElement("button");
+  addButton.type = "button";
+  addButton.className = "voice-card voice-card-placeholder";
+  addButton.innerHTML = `
+    <div class="voice-card-content">
+      <strong>新建音色</strong>
+      <span>上传或录制音频</span>
+    </div>
+    <span class="voice-add-icon" aria-hidden="true">+</span>
+  `;
+  addButton.addEventListener("click", openVoiceModal);
+  refs.voiceList.appendChild(addButton);
+}
+
+function resetVoiceDraft() {
+  state.pendingVoicePath = "";
+  state.pendingVoiceBytes = null;
+  revokePendingPreviewUrl();
+  refs.voicePreviewAudio.removeAttribute("src");
+  refs.voicePreviewAudio.load();
+  refs.voiceSourceStatus.textContent = "请选择一段音频（支持 WAV、FLAC、MP3、OGG、M4A），或者录制一段新的音频。";
+  refs.voiceConfirmBtn.disabled = true;
+}
+
+function syncVoiceConfirmState() {
+  const hasName = refs.voiceNameInput.value.trim().length > 0;
+  const hasSource = Boolean(state.pendingVoicePath || state.pendingVoiceBytes);
+  refs.voiceConfirmBtn.disabled = !(hasName && hasSource);
+}
+
+function appendEmotionPreset(preset) {
+  const presetText = preset.text || preset;
+  refs.emotionInput.value = presetText;
+}
+
+function renderEmotionPresets() {
+  refs.emotionPresetBar.innerHTML = "";
+  EMOTION_PRESETS.forEach((preset) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "preset-btn";
+    button.textContent = preset.label || preset;
+    button.addEventListener("click", () => appendEmotionPreset(preset));
+    refs.emotionPresetBar.appendChild(button);
+  });
+}
+
+function getSpeechSpeedPreset(value) {
+  return (
+    SPEECH_SPEED_PRESETS.find((preset) => preset.value === String(value)) ||
+    SPEECH_SPEED_PRESETS[2]
+  );
+}
+
+function formatSpeechSpeedValue(value) {
+  return getSpeechSpeedPreset(value).label;
+}
+
+function buildStyleInstruction(...parts) {
+  return parts
+    .map((part) => String(part || "").trim())
+    .filter(Boolean)
+    .join(", ");
+}
+
+function renderLanguageOptions(_languages = LANGUAGE_OPTIONS) {}
+
+function updateMeta(meta) {
+  state.modelMeta = meta;
+  refs.deviceBadge.textContent = `${meta.device} / ${meta.dtype}`;
+  refs.generateBtn.disabled = false;
+  refs.generateBtn.textContent = "生成音频";
+  setGenerateButtonBusy(false);
+}
+
+function applyResult(result) {
+  state.latestResultPath = result.outputPath;
+  state.latestResultTemporary = Boolean(result.isTemporary);
+  refs.resultAudio.src = window.studioApi.toFileUrl(result.outputPath);
+  refs.resultAudio.playbackRate = Number.parseFloat(refs.audioSpeedInput.value || "1");
+}
+
+function buildGeneratePayload() {
+  const emotion = refs.emotionInput.value.trim();
+  const selectedVoice = getSelectedVoice();
+  const speechSpeedPrompt = getSpeechSpeedPreset(refs.speechSpeedInput.value).prompt;
+  const baseStyleInstruction = emotion || DEFAULT_STYLE_DESCRIPTION;
+  const styleInstruction = buildStyleInstruction(baseStyleInstruction, speechSpeedPrompt);
+
+  if (selectedVoice.kind === "custom") {
+    return {
+      mode: "clone",
+      text: refs.textInput.value.trim(),
+      language: "",
+      refAudio: selectedVoice.audioPath,
+      refText: "",
+      instruct: "",
+      cloneStyle: styleInstruction,
+      fileStem: "",
+      settings: {},
+      speedRatio: 1
+    };
+  }
+
+  return {
+    mode: styleInstruction ? "design" : "auto",
+    text: refs.textInput.value.trim(),
+    language: "",
+    refAudio: "",
+    refText: "",
+    instruct: styleInstruction,
+    cloneStyle: "",
+    fileStem: "",
+    settings: {},
+    speedRatio: 1
   };
 }
 
@@ -884,6 +1096,457 @@ async function bootstrap() {
         description: `来源：${voice.source === "recording" ? "录音" : "上传音频"}`
       }))
     );
+    renderVoiceList();
+
+    const capabilities = await window.studioApi.capabilities();
+    state.capabilities = capabilities;
+    addLog("前端已准备完毕。", "success");
+    await autoInitializeOnStartup();
+  } catch (error) {
+    addLog(`启动阶段出现问题：${error.message}`, "error");
+  }
+}
+
+function mapCustomVoices(customVoices) {
+  return [getDefaultVoice()].concat(
+    customVoices.map((voice) => ({
+      ...voice,
+      kind: "custom",
+      description: describeVoice(voice)
+    }))
+  );
+}
+
+async function stopActiveRecording() {
+  if (!state.recorder) {
+    return;
+  }
+
+  const activeRecorder = state.recorder;
+  state.recorder = null;
+
+  if (activeRecorder.mediaRecorder.state === "inactive") {
+    return;
+  }
+
+  refs.voiceRecordBtn.disabled = true;
+  refs.voiceStopBtn.disabled = true;
+
+  await new Promise((resolve, reject) => {
+    activeRecorder.mediaRecorder.onstop = async () => {
+      try {
+        activeRecorder.stream.getTracks().forEach((track) => track.stop());
+
+        const blob = new Blob(activeRecorder.chunks, {
+          type: activeRecorder.mimeType || "audio/webm"
+        });
+        if (!blob.size) {
+          refs.voiceSourceStatus.textContent = "没有录到有效音频，请重试。";
+          refs.voiceRecordBtn.disabled = false;
+          refs.voiceStopBtn.disabled = true;
+          resolve();
+          return;
+        }
+
+        state.pendingVoiceBytes = await convertBlobToWavBytes(blob);
+        state.pendingVoicePath = "";
+        revokePendingPreviewUrl();
+        const wavPreviewBlob = new Blob([Uint8Array.from(state.pendingVoiceBytes)], {
+          type: "audio/wav"
+        });
+        state.pendingVoicePreviewUrl = URL.createObjectURL(wavPreviewBlob);
+        refs.voicePreviewAudio.src = state.pendingVoicePreviewUrl;
+        refs.voicePreviewAudio.load();
+        refs.voiceSourceStatus.textContent = "录音已准备好，确认后会加入音色列表。";
+        refs.voiceRecordBtn.disabled = false;
+        refs.voiceStopBtn.disabled = true;
+        syncVoiceConfirmState();
+        resolve();
+      } catch (error) {
+        refs.voiceSourceStatus.textContent = `录音处理失败：${error.message}`;
+        refs.voiceRecordBtn.disabled = false;
+        refs.voiceStopBtn.disabled = true;
+        reject(error);
+      }
+    };
+
+    activeRecorder.mediaRecorder.onerror = (event) => {
+      activeRecorder.stream.getTracks().forEach((track) => track.stop());
+      refs.voiceSourceStatus.textContent = `录音失败：${event.error?.message || "未知错误"}`;
+      refs.voiceRecordBtn.disabled = false;
+      refs.voiceStopBtn.disabled = true;
+      reject(event.error || new Error("Recording failed."));
+    };
+
+    activeRecorder.mediaRecorder.stop();
+  });
+}
+
+async function runDoctor() {
+  try {
+    setWorkerState("环境检查中", "busy");
+    setStartupState("正在检查运行环境", "正在确认依赖、模型目录和 Python worker 是否就绪。", "检查中", "busy");
+    const result = await window.studioApi.doctor();
+    setWorkerState("待初始化", "idle");
+
+    const missing = Object.entries(result.modules)
+      .filter(([, info]) => !info.ok)
+      .map(([name]) => name);
+
+    if (missing.length === 0) {
+      addLog("环境检查通过，VoxCPM2 依赖已就绪。", "success");
+      setStartupState("环境检查通过", "依赖和路径都已就绪，接下来会自动选择设备并加载模型。", "检查通过", "idle");
+      setDiagnosticPanel(false);
+    } else {
+      addLog(`环境检查发现缺少依赖：${missing.join(", ")}`, "error");
+      setStartupState("自动启动失败", `检测到缺少依赖：${missing.join(", ")}。请展开诊断详情查看。`, "需要诊断", "error");
+      setDiagnosticPanel(true);
+    }
+
+    return {
+      ok: missing.length === 0,
+      missing,
+      result
+    };
+  } catch (error) {
+    setWorkerState("检查失败", "error");
+    addLog(error.message, "error");
+    setStartupState("自动启动失败", error.message, "需要诊断", "error");
+    setDiagnosticPanel(true);
+    return {
+      ok: false,
+      missing: [],
+      error
+    };
+  }
+}
+
+async function initializeModel() {
+  if (state.isInitializing) {
+    return;
+  }
+
+  try {
+    state.isInitializing = true;
+    refs.initializeBtn.disabled = true;
+    refs.initializeBtn.textContent = "加载中...";
+    refs.generateBtn.disabled = true;
+    refs.generateBtn.textContent = "加载中...";
+    setGenerateButtonBusy(true);
+    setWorkerState("模型加载中", "busy");
+    setStartupState("正在加载模型", "正在自动选择 CUDA 或 CPU，并初始化 VoxCPM2。", "加载中", "busy");
+
+    const settings = await window.studioApi.updateSettings({
+      devicePreference: "auto"
+    });
+    setSettingsUI(settings);
+
+    const meta = await window.studioApi.initialize();
+    updateMeta(meta);
+    setWorkerState("模型已就绪", "ready");
+    addLog(`VoxCPM2 加载完成，设备 ${meta.device}，耗时 ${meta.loadSeconds}s`, "success");
+    setStartupState(
+      "模型已就绪",
+      meta.device === "cuda"
+        ? "已自动检测到 CUDA，并完成 VoxCPM2 加载。"
+        : `当前未使用 CUDA，已自动回退到 ${meta.device.toUpperCase()} 并完成加载。`,
+      meta.device.toUpperCase(),
+      "ready"
+    );
+    setDiagnosticPanel(false);
+  } catch (error) {
+    setWorkerState("加载失败", "error");
+    addLog(error.message, "error");
+    setStartupState("模型加载失败", error.message, "需要诊断", "error");
+    setDiagnosticPanel(true);
+    refs.generateBtn.disabled = true;
+    refs.generateBtn.textContent = "加载中...";
+    setGenerateButtonBusy(true);
+  } finally {
+    state.isInitializing = false;
+    refs.initializeBtn.disabled = false;
+    refs.initializeBtn.textContent = "重新加载模型";
+  }
+}
+
+async function generateAudio() {
+  if (state.isGenerating) {
+    return;
+  }
+
+  if (!state.modelMeta?.ready) {
+    addLog("请先加载模型。", "error");
+    return;
+  }
+
+  try {
+    state.isGenerating = true;
+    refs.generateBtn.disabled = true;
+    refs.generateBtn.textContent = "生成中...";
+    setGenerateButtonBusy(true);
+    setWorkerState("推理中", "busy");
+
+    const result = await window.studioApi.generate(buildGeneratePayload());
+    applyResult(result);
+    setWorkerState("模型已就绪", "ready");
+    addLog(`生成完成：${result.outputPath}`, "success");
+  } catch (error) {
+    setWorkerState("生成失败", "error");
+    addLog(error.message, "error");
+  } finally {
+    state.isGenerating = false;
+    refs.generateBtn.disabled = false;
+    refs.generateBtn.textContent = "生成音频";
+    setGenerateButtonBusy(false);
+  }
+}
+
+async function autoInitializeOnStartup() {
+  addLog("启动完成，开始自动检查环境。", "info");
+  setStartupState("正在准备模型环境", "应用会自动检测设备并尝试加载 VoxCPM2。", "启动中", "busy");
+
+  const doctor = await runDoctor();
+  if (!doctor?.ok) {
+    return;
+  }
+
+  addLog("环境检查通过，开始自动加载模型。", "info");
+  await initializeModel();
+}
+
+async function bootstrap() {
+  collectRefs();
+  setDiagnosticPanel(false);
+  setStartupState("正在准备模型环境", "应用会自动检测设备并尝试加载 VoxCPM2。", "启动中", "busy");
+  renderEmotionPresets();
+  refs.generateBtn.disabled = true;
+  refs.generateBtn.textContent = "加载中...";
+  setGenerateButtonBusy(true);
+  refs.speechSpeedValue.textContent = formatSpeechSpeedValue(refs.speechSpeedInput.value);
+  refs.audioSpeedValue.textContent = formatSpeedValue(refs.audioSpeedInput.value);
+  refs.resultAudio.playbackRate = Number.parseFloat(refs.audioSpeedInput.value || "1");
+
+  refs.doctorBtn.addEventListener("click", runDoctor);
+  refs.initializeBtn.addEventListener("click", initializeModel);
+  refs.generateBtn.addEventListener("click", generateAudio);
+  refs.resultMenuBtn.addEventListener("click", (event) => {
+    event.stopPropagation();
+    setResultMenuOpen(refs.resultMenu.classList.contains("hidden"));
+  });
+  refs.saveAudioBtn.addEventListener("click", async () => {
+    if (!state.latestResultPath) {
+      addLog("当前还没有可保存的音频。", "error");
+      setResultMenuOpen(false);
+      return;
+    }
+
+    try {
+      const result = await window.studioApi.saveAudioAs({ sourcePath: state.latestResultPath });
+      if (result?.saved) {
+        state.latestResultTemporary = false;
+        addLog(`音频已另存为：${result.filePath}`, "success");
+      }
+    } catch (error) {
+      addLog(error.message, "error");
+    } finally {
+      setResultMenuOpen(false);
+    }
+  });
+  refs.speechSpeedInput.addEventListener("input", () => {
+    refs.speechSpeedValue.textContent = formatSpeechSpeedValue(refs.speechSpeedInput.value);
+  });
+  refs.audioSpeedInput.addEventListener("input", () => {
+    refs.audioSpeedValue.textContent = formatSpeedValue(refs.audioSpeedInput.value);
+    refs.resultAudio.playbackRate = Number.parseFloat(refs.audioSpeedInput.value || "1");
+  });
+  refs.voiceNameInput.addEventListener("input", syncVoiceConfirmState);
+  refs.voiceCancelBtn.addEventListener("click", async () => {
+    await stopActiveRecording();
+    refs.voiceModal.classList.add("hidden");
+    resetVoiceDraft();
+  });
+  refs.deleteVoiceCancelBtn.addEventListener("click", closeDeleteVoiceModal);
+  refs.voiceClearBtn.addEventListener("click", async () => {
+    await stopActiveRecording();
+    resetVoiceDraft();
+  });
+  refs.voiceUploadBtn.addEventListener("click", async () => {
+    const filePath = await window.studioApi.pickReferenceAudio();
+    if (!filePath) {
+      return;
+    }
+    await stopActiveRecording();
+    state.pendingVoicePath = filePath;
+    state.pendingVoiceBytes = null;
+    revokePendingPreviewUrl();
+    refs.voicePreviewAudio.src = window.studioApi.toFileUrl(filePath);
+    refs.voicePreviewAudio.load();
+    refs.voiceSourceStatus.textContent =
+      "已选择上传音频，确认后会加入音色列表。";
+    syncVoiceConfirmState();
+  });
+  refs.voiceRecordBtn.addEventListener("click", async () => {
+    if (state.recorder) {
+      return;
+    }
+
+    try {
+      revokePendingPreviewUrl();
+      refs.voicePreviewAudio.removeAttribute("src");
+      refs.voicePreviewAudio.load();
+      state.pendingVoicePath = "";
+      state.pendingVoiceBytes = null;
+
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mimeType = pickRecordingMimeType();
+      const mediaRecorder = mimeType
+        ? new MediaRecorder(stream, { mimeType })
+        : new MediaRecorder(stream);
+      const chunks = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data && event.data.size > 0) {
+          chunks.push(event.data);
+        }
+      };
+
+      state.recorder = {
+        stream,
+        mediaRecorder,
+        chunks,
+        mimeType
+      };
+      mediaRecorder.start();
+      refs.voiceRecordBtn.disabled = true;
+      refs.voiceStopBtn.disabled = false;
+      refs.voiceSourceStatus.textContent =
+        "正在录音，完成后点击“停止录音”。";
+      syncVoiceConfirmState();
+    } catch (error) {
+      refs.voiceSourceStatus.textContent = `录音失败：${error.message}`;
+    }
+  });
+  refs.voiceStopBtn.addEventListener("click", stopActiveRecording);
+  refs.voiceConfirmBtn.addEventListener("click", async () => {
+    const name = refs.voiceNameInput.value.trim();
+    if (!name) {
+      refs.voiceSourceStatus.textContent = "请先输入音色名称。";
+      return;
+    }
+    if (Array.from(name).length > 6) {
+      refs.voiceSourceStatus.textContent = "音色名称请控制在 6 个字以内。";
+      return;
+    }
+
+    try {
+      let record;
+      if (state.pendingVoicePath) {
+        record = await window.studioApi.importVoice({
+          name,
+          sourcePath: state.pendingVoicePath
+        });
+      } else if (state.pendingVoiceBytes) {
+        record = await window.studioApi.saveRecordedVoice({
+          name,
+          audioBytes: state.pendingVoiceBytes
+        });
+      } else {
+        refs.voiceSourceStatus.textContent = "请先上传音频或录制一段音频。";
+        return;
+      }
+
+      const customVoices = await window.studioApi.getVoices();
+      state.voices = mapCustomVoices(customVoices);
+      state.selectedVoiceId = record.id;
+      renderVoiceList();
+      refs.voiceModal.classList.add("hidden");
+      resetVoiceDraft();
+    } catch (error) {
+      refs.voiceSourceStatus.textContent = `添加失败：${error.message}`;
+    }
+  });
+  refs.deleteVoiceConfirmBtn.addEventListener("click", async () => {
+    if (!state.voicePendingDeleteId) {
+      closeDeleteVoiceModal();
+      return;
+    }
+
+    try {
+      await window.studioApi.deleteVoice({ id: state.voicePendingDeleteId });
+      const deletedId = state.voicePendingDeleteId;
+      closeDeleteVoiceModal();
+      const customVoices = await window.studioApi.getVoices();
+      state.voices = mapCustomVoices(customVoices);
+      if (state.selectedVoiceId === deletedId) {
+        state.selectedVoiceId = "auto";
+      }
+      renderVoiceList();
+    } catch (error) {
+      refs.deleteVoiceMessage.textContent = `删除失败：${error.message}`;
+    }
+  });
+
+  refs.openOutputBtn.addEventListener("click", () => {
+    if (state.settings?.outputDir) {
+      window.studioApi.openPath(state.settings.outputDir);
+    }
+  });
+
+  refs.clearLogBtn.addEventListener("click", () => {
+    refs.logConsole.innerHTML = "";
+  });
+
+  window.studioApi.onBackendEvent((event) => {
+    if (event.name === "log") {
+      addLog(event.payload.message, event.payload.level || "info");
+    }
+
+    if (event.name === "status") {
+      if (event.payload.state === "ready") {
+        setWorkerState("模型已就绪", "ready");
+        refs.generateBtn.disabled = false;
+        refs.generateBtn.textContent = "生成音频";
+        setGenerateButtonBusy(false);
+      } else if (event.payload.state === "loading") {
+        setWorkerState("模型加载中", "busy");
+        setStartupState(
+          "正在加载模型",
+          event.payload.message || "正在初始化 VoxCPM2。",
+          "加载中",
+          "busy"
+        );
+        refs.generateBtn.disabled = true;
+        refs.generateBtn.textContent = "加载中...";
+        setGenerateButtonBusy(true);
+      } else if (event.payload.state === "stopped") {
+        setWorkerState("已停止", "idle");
+        setStartupState("服务已停止", "Python worker 已停止运行。", "已停止", "idle");
+        refs.generateBtn.disabled = true;
+        refs.generateBtn.textContent = "加载中...";
+        setGenerateButtonBusy(true);
+      }
+      if (event.payload.message) {
+        addLog(event.payload.message, "info");
+      }
+    }
+
+    if (event.name === "stderr") {
+      addLog(event.payload.line, "info");
+    }
+
+    if (event.name === "error") {
+      addLog(event.payload.message, "error");
+    }
+  });
+
+  try {
+    document.addEventListener("click", () => setResultMenuOpen(false));
+
+    const settings = await window.studioApi.getSettings();
+    setSettingsUI(settings);
+
+    const customVoices = await window.studioApi.getVoices();
+    state.voices = mapCustomVoices(customVoices);
     renderVoiceList();
 
     const capabilities = await window.studioApi.capabilities();
