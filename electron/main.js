@@ -1,12 +1,12 @@
 const { app, BrowserWindow, dialog, ipcMain, shell } = require("electron");
 const path = require("path");
 const fs = require("fs");
+const { spawn } = require("child_process");
 const { PythonShell } = require("python-shell");
 
 const ROOT_DIR = path.resolve(__dirname, "..");
-const BACKEND_DIR = path.join(ROOT_DIR, "backend");
 const RENDERER_DIR = path.join(ROOT_DIR, "renderer");
-const OUTPUT_DIR = path.join(ROOT_DIR, "outputs");
+const MODEL_REPO_ID = "openbmb/VoxCPM2";
 const CONDA_PY311 = path.join(
   process.env.USERPROFILE || "C:\\Users\\24509",
   "anaconda3",
@@ -14,13 +14,42 @@ const CONDA_PY311 = path.join(
   "tts-backend-py311",
   "python.exe"
 );
-const DEFAULT_SETTINGS = {
-  pythonPath: "",
-  modelDir: path.join(ROOT_DIR, "models", "VoxCPM2-HF"),
-  sourceDir: path.join(ROOT_DIR, "models", "VoxCPM", "src"),
-  outputDir: OUTPUT_DIR,
-  devicePreference: "auto"
-};
+
+function isPackagedApp() {
+  return app.isPackaged;
+}
+
+function getBackendDir() {
+  return isPackagedApp()
+    ? path.join(process.resourcesPath, "app-assets", "backend")
+    : path.join(ROOT_DIR, "backend");
+}
+
+function getBundledSourceDir() {
+  return isPackagedApp()
+    ? path.join(process.resourcesPath, "app-assets", "voxcpm-src")
+    : path.join(ROOT_DIR, "models", "VoxCPM", "src");
+}
+
+function getDefaultModelDir() {
+  return isPackagedApp()
+    ? path.join(app.getPath("userData"), "models", "VoxCPM2-HF")
+    : path.join(ROOT_DIR, "models", "VoxCPM2-HF");
+}
+
+function getDefaultOutputDir() {
+  return isPackagedApp() ? path.join(app.getPath("userData"), "outputs") : path.join(ROOT_DIR, "outputs");
+}
+
+function getDefaultSettings() {
+  return {
+    pythonPath: "",
+    modelDir: getDefaultModelDir(),
+    sourceDir: getBundledSourceDir(),
+    outputDir: getDefaultOutputDir(),
+    devicePreference: "auto"
+  };
+}
 
 function getVoiceLibraryDir() {
   return path.join(app.getPath("userData"), "voices");
@@ -32,6 +61,10 @@ function getPreviewOutputDir() {
 
 function getVoiceLibraryIndexPath() {
   return path.join(getVoiceLibraryDir(), "voices.json");
+}
+
+function getSettingsPath() {
+  return path.join(app.getPath("userData"), "settings.json");
 }
 
 function safeExt(filePath, fallback = ".wav") {
@@ -47,6 +80,96 @@ function sanitizeName(value, fallback = "voice") {
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "");
   return base || fallback;
+}
+
+function ensureDir(dirPath) {
+  fs.mkdirSync(dirPath, { recursive: true });
+}
+
+function isModelDirectoryReady(modelDir) {
+  if (!modelDir || !fs.existsSync(modelDir) || !fs.statSync(modelDir).isDirectory()) {
+    return false;
+  }
+
+  const requiredFiles = ["config.json", "model.safetensors"];
+  return requiredFiles.every((fileName) => fs.existsSync(path.join(modelDir, fileName)));
+}
+
+function migrateSettings(rawSettings) {
+  const defaults = getDefaultSettings();
+  const next = { ...defaults, ...(rawSettings || {}) };
+  let changed = false;
+
+  const legacyModelDir =
+    typeof next.modelDir === "string" &&
+    (next.modelDir.includes("VoxCPM1.5") ||
+      next.modelDir.includes("VoxCPM-0.5B") ||
+      next.modelDir.includes("OmniVoice-HF"));
+  if (legacyModelDir) {
+    next.modelDir = defaults.modelDir;
+    changed = true;
+  }
+
+  const legacySourceDir = typeof next.sourceDir === "string" && next.sourceDir.includes("OmniVoice");
+  if (legacySourceDir || !fs.existsSync(next.sourceDir)) {
+    next.sourceDir = defaults.sourceDir;
+    changed = true;
+  }
+
+  if (isPackagedApp()) {
+    if (!next.modelDir || next.modelDir.startsWith(ROOT_DIR)) {
+      next.modelDir = defaults.modelDir;
+      changed = true;
+    }
+    if (!next.outputDir || next.outputDir.startsWith(ROOT_DIR)) {
+      next.outputDir = defaults.outputDir;
+      changed = true;
+    }
+  }
+
+  if ("modelPreset" in next) {
+    delete next.modelPreset;
+    changed = true;
+  }
+
+  return { settings: next, changed };
+}
+
+function readSettings() {
+  const settingsPath = getSettingsPath();
+  if (!fs.existsSync(settingsPath)) {
+    return getDefaultSettings();
+  }
+
+  try {
+    const parsed = JSON.parse(fs.readFileSync(settingsPath, "utf8"));
+    return migrateSettings(parsed).settings;
+  } catch {
+    return getDefaultSettings();
+  }
+}
+
+function saveSettings(nextSettings) {
+  const settingsPath = getSettingsPath();
+  ensureDir(path.dirname(settingsPath));
+  fs.writeFileSync(settingsPath, JSON.stringify(nextSettings, null, 2), "utf8");
+}
+
+function resolvePythonPath(storedPath) {
+  if (storedPath && fs.existsSync(storedPath)) {
+    return storedPath;
+  }
+
+  const venvPython = path.join(ROOT_DIR, ".venv", "Scripts", "python.exe");
+  if (fs.existsSync(venvPython)) {
+    return venvPython;
+  }
+
+  if (fs.existsSync(CONDA_PY311)) {
+    return CONDA_PY311;
+  }
+
+  return "python";
 }
 
 function readVoiceLibrary() {
@@ -67,8 +190,7 @@ function readVoiceLibrary() {
 }
 
 function writeVoiceLibrary(voices) {
-  const libraryDir = getVoiceLibraryDir();
-  ensureDir(libraryDir);
+  ensureDir(getVoiceLibraryDir());
   fs.writeFileSync(getVoiceLibraryIndexPath(), JSON.stringify(voices, null, 2), "utf8");
 }
 
@@ -192,10 +314,6 @@ function saveAudioAs({ sourcePath }) {
     });
 }
 
-function ensureDir(dirPath) {
-  fs.mkdirSync(dirPath, { recursive: true });
-}
-
 function clearPreviewOutputs() {
   const previewDir = getPreviewOutputDir();
   if (!fs.existsSync(previewDir)) {
@@ -208,117 +326,33 @@ function clearPreviewOutputs() {
   }
 }
 
-function getSettingsPath() {
-  return path.join(app.getPath("userData"), "settings.json");
-}
-
-function readSettings() {
-  const settingsPath = getSettingsPath();
-  if (!fs.existsSync(settingsPath)) {
-    return { ...DEFAULT_SETTINGS };
-  }
-
-  try {
-    const parsed = JSON.parse(fs.readFileSync(settingsPath, "utf8"));
-    const next = { ...DEFAULT_SETTINGS, ...parsed };
-    if (
-      typeof next.modelDir === "string" &&
-      (
-        next.modelDir.includes("VoxCPM1.5") ||
-        next.modelDir.includes("VoxCPM-0.5B")
-      )
-    ) {
-      next.modelDir = DEFAULT_SETTINGS.modelDir;
-    }
-    if (
-      typeof next.modelDir === "string" &&
-      next.modelDir.includes("OmniVoice-HF")
-    ) {
-      next.modelDir = DEFAULT_SETTINGS.modelDir;
-    }
-    if (
-      typeof next.sourceDir === "string" &&
-      next.sourceDir.includes("OmniVoice")
-    ) {
-      next.sourceDir = DEFAULT_SETTINGS.sourceDir;
-    }
-    if ("modelPreset" in next) {
-      delete next.modelPreset;
-    }
-    return next;
-  } catch {
-    return { ...DEFAULT_SETTINGS };
-  }
-}
-
-function saveSettings(nextSettings) {
-  const settingsPath = getSettingsPath();
-  ensureDir(path.dirname(settingsPath));
-  fs.writeFileSync(settingsPath, JSON.stringify(nextSettings, null, 2), "utf8");
-}
-
-function resolvePythonPath(storedPath) {
-  if (storedPath && fs.existsSync(storedPath)) {
-    return storedPath;
-  }
-
-  const venvPython = path.join(ROOT_DIR, ".venv", "Scripts", "python.exe");
-  if (fs.existsSync(venvPython)) {
-    return venvPython;
-  }
-
-  if (fs.existsSync(CONDA_PY311)) {
-    return CONDA_PY311;
-  }
-
-  return "python";
-}
-
 class OmniVoiceService {
   constructor() {
     this.shell = null;
     this.pending = new Map();
     this.nextId = 1;
     this.window = null;
-    this.settings = readSettings();
+    const migrated = migrateSettings(readSettings());
+    this.settings = migrated.settings;
+    if (migrated.changed || !fs.existsSync(getSettingsPath())) {
+      saveSettings(this.settings);
+    }
+    this.modelDownloadProcess = null;
+    this.modelDownloadPromise = null;
   }
 
   bindWindow(window) {
     this.window = window;
   }
 
-  async startWorker() {
-    if (this.shell) {
+  pushEvent(name, payload) {
+    if (!this.window || this.window.isDestroyed()) {
       return;
     }
-
-    ensureDir(this.settings.outputDir || OUTPUT_DIR);
-
-    const pythonPath = resolvePythonPath(this.settings.pythonPath);
-    this.shell = new PythonShell(path.join(BACKEND_DIR, "worker.py"), {
-      mode: "text",
-      formatter: "json",
-      parser: "text",
-      pythonPath,
-      pythonOptions: ["-u"],
-      env: {
-        ...process.env,
-        PYTHONIOENCODING: "utf-8"
-      },
-      stderrParser: (line) => line
-    });
-
-    this.shell.on("message", (message) => this.handleMessage(message));
-    this.shell.on("stderr", (line) => this.pushEvent("stderr", { line }));
-    this.shell.on("error", (error) => {
-      this.pushEvent("error", { message: error.message });
-      this.rejectAllPending(error);
-      this.shell = null;
-    });
-    this.shell.on("close", () => {
-      this.pushEvent("status", { state: "stopped" });
-      this.rejectAllPending(new Error("Python worker closed."));
-      this.shell = null;
+    this.window.webContents.send("backend:event", {
+      name,
+      payload,
+      at: new Date().toISOString()
     });
   }
 
@@ -376,14 +410,39 @@ class OmniVoiceService {
     }
   }
 
-  pushEvent(name, payload) {
-    if (!this.window || this.window.isDestroyed()) {
+  async startWorker() {
+    if (this.shell) {
       return;
     }
-    this.window.webContents.send("backend:event", {
-      name,
-      payload,
-      at: new Date().toISOString()
+
+    ensureDir(this.settings.outputDir || getDefaultOutputDir());
+
+    const pythonPath = resolvePythonPath(this.settings.pythonPath);
+    const workerPath = path.join(getBackendDir(), "worker.py");
+    this.shell = new PythonShell(workerPath, {
+      mode: "text",
+      formatter: "json",
+      parser: "text",
+      pythonPath,
+      pythonOptions: ["-u"],
+      env: {
+        ...process.env,
+        PYTHONIOENCODING: "utf-8"
+      },
+      stderrParser: (line) => line
+    });
+
+    this.shell.on("message", (message) => this.handleMessage(message));
+    this.shell.on("stderr", (line) => this.pushEvent("stderr", { line }));
+    this.shell.on("error", (error) => {
+      this.pushEvent("error", { message: error.message });
+      this.rejectAllPending(error);
+      this.shell = null;
+    });
+    this.shell.on("close", () => {
+      this.pushEvent("status", { state: "stopped" });
+      this.rejectAllPending(new Error("Python worker closed."));
+      this.shell = null;
     });
   }
 
@@ -397,11 +456,142 @@ class OmniVoiceService {
     return promise;
   }
 
+  getSettings() {
+    return {
+      ...this.settings,
+      pythonPath: resolvePythonPath(this.settings.pythonPath)
+    };
+  }
+
+  updateSettings(patch) {
+    const next = migrateSettings({ ...this.settings, ...(patch || {}) }).settings;
+    this.settings = next;
+    ensureDir(this.settings.outputDir || getDefaultOutputDir());
+    saveSettings(this.settings);
+    return this.getSettings();
+  }
+
+  getModelStatus() {
+    return {
+      repoId: MODEL_REPO_ID,
+      modelDir: this.settings.modelDir,
+      sourceDir: this.settings.sourceDir,
+      exists: isModelDirectoryReady(this.settings.modelDir),
+      downloading: Boolean(this.modelDownloadPromise)
+    };
+  }
+
+  async ensureModelAssets(force = false) {
+    if (!force && isModelDirectoryReady(this.settings.modelDir)) {
+      return {
+        ...this.getModelStatus(),
+        downloaded: false
+      };
+    }
+
+    if (this.modelDownloadPromise) {
+      return this.modelDownloadPromise;
+    }
+
+    ensureDir(path.dirname(this.settings.modelDir));
+    ensureDir(this.settings.modelDir);
+
+    const pythonPath = resolvePythonPath(this.settings.pythonPath);
+    const scriptPath = path.join(getBackendDir(), "download_model.py");
+    const args = [scriptPath, "--repo-id", MODEL_REPO_ID, "--local-dir", this.settings.modelDir];
+
+    this.pushEvent("model-download", {
+      state: "preparing",
+      message: "正在准备下载 VoxCPM2 模型..."
+    });
+
+    this.modelDownloadPromise = new Promise((resolve, reject) => {
+      const child = spawn(pythonPath, args, {
+        cwd: getBackendDir(),
+        env: {
+          ...process.env,
+          PYTHONIOENCODING: "utf-8"
+        },
+        windowsHide: true
+      });
+      this.modelDownloadProcess = child;
+
+      const forwardJsonLines = (buffer, channel, fallbackLevel = "info") => {
+        let pending = "";
+        buffer.on("data", (chunk) => {
+          pending += chunk.toString("utf8");
+          const lines = pending.split(/\r?\n/);
+          pending = lines.pop() || "";
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed) {
+              continue;
+            }
+            try {
+              const payload = JSON.parse(trimmed);
+              if (channel === "model-download") {
+                this.pushEvent("model-download", payload);
+              } else {
+                this.pushEvent(channel, payload);
+              }
+            } catch {
+              this.pushEvent("log", {
+                level: fallbackLevel,
+                message: trimmed
+              });
+            }
+          }
+        });
+      };
+
+      forwardJsonLines(child.stdout, "model-download", "info");
+      forwardJsonLines(child.stderr, "log", "error");
+
+      child.on("error", (error) => {
+        this.modelDownloadProcess = null;
+        this.modelDownloadPromise = null;
+        this.pushEvent("model-download", {
+          state: "error",
+          message: error.message
+        });
+        reject(error);
+      });
+
+      child.on("close", (code) => {
+        this.modelDownloadProcess = null;
+        const success = code === 0 && isModelDirectoryReady(this.settings.modelDir);
+        this.modelDownloadPromise = null;
+
+        if (!success) {
+          const error = new Error("Model download failed.");
+          this.pushEvent("model-download", {
+            state: "error",
+            message: "模型下载失败，请检查网络或 Python 环境。"
+          });
+          reject(error);
+          return;
+        }
+
+        this.pushEvent("model-download", {
+          state: "complete",
+          message: "模型下载完成。"
+        });
+        resolve({
+          ...this.getModelStatus(),
+          downloaded: true
+        });
+      });
+    });
+
+    return this.modelDownloadPromise;
+  }
+
   async doctor() {
     return this.request("doctor", this.settings);
   }
 
   async initialize() {
+    await this.ensureModelAssets(false);
     return this.request("init", this.settings);
   }
 
@@ -424,30 +614,22 @@ class OmniVoiceService {
   }
 
   async stop() {
-    if (!this.shell) {
-      clearPreviewOutputs();
-      return;
+    if (this.modelDownloadProcess) {
+      this.modelDownloadProcess.kill();
+      this.modelDownloadProcess = null;
+      this.modelDownloadPromise = null;
     }
-    try {
-      await this.request("shutdown", {});
-    } catch {
-      // Ignore shutdown races.
+
+    if (this.shell) {
+      try {
+        await this.request("shutdown", {});
+      } catch {
+        // Ignore shutdown races.
+      }
+      this.shell = null;
     }
+
     clearPreviewOutputs();
-    this.shell = null;
-  }
-
-  getSettings() {
-    return {
-      ...this.settings,
-      pythonPath: resolvePythonPath(this.settings.pythonPath)
-    };
-  }
-
-  updateSettings(patch) {
-    this.settings = { ...this.settings, ...patch };
-    saveSettings(this.settings);
-    return this.getSettings();
   }
 }
 
@@ -473,7 +655,7 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
-  ensureDir(OUTPUT_DIR);
+  ensureDir(service.settings.outputDir || getDefaultOutputDir());
   ensureDir(getPreviewOutputDir());
   clearPreviewOutputs();
   createWindow();
@@ -493,15 +675,15 @@ app.on("window-all-closed", async () => {
 });
 
 ipcMain.handle("studio:get-settings", async () => service.getSettings());
-ipcMain.handle("studio:update-settings", async (_event, patch) =>
-  service.updateSettings(patch || {})
+ipcMain.handle("studio:update-settings", async (_event, patch) => service.updateSettings(patch || {}));
+ipcMain.handle("studio:get-model-status", async () => service.getModelStatus());
+ipcMain.handle("studio:ensure-model-assets", async (_event, payload) =>
+  service.ensureModelAssets(Boolean(payload?.force))
 );
 ipcMain.handle("studio:doctor", async () => service.doctor());
 ipcMain.handle("studio:initialize", async () => service.initialize());
 ipcMain.handle("studio:capabilities", async () => service.getCapabilities());
-ipcMain.handle("studio:generate", async (_event, payload) =>
-  service.generate(payload || {})
-);
+ipcMain.handle("studio:generate", async (_event, payload) => service.generate(payload || {}));
 ipcMain.handle("studio:pick-ref-audio", async () => {
   const result = await dialog.showOpenDialog({
     properties: ["openFile"],
@@ -541,15 +723,7 @@ ipcMain.handle("studio:show-item-in-folder", async (_event, targetPath) => {
   return true;
 });
 ipcMain.handle("studio:get-voices", async () => getVoices());
-ipcMain.handle("studio:import-voice", async (_event, payload) =>
-  importVoiceFromFile(payload || {})
-);
-ipcMain.handle("studio:save-recorded-voice", async (_event, payload) =>
-  saveRecordedVoice(payload || {})
-);
-ipcMain.handle("studio:delete-voice", async (_event, payload) =>
-  deleteVoiceById(payload || {})
-);
-ipcMain.handle("studio:save-audio-as", async (_event, payload) =>
-  saveAudioAs(payload || {})
-);
+ipcMain.handle("studio:import-voice", async (_event, payload) => importVoiceFromFile(payload || {}));
+ipcMain.handle("studio:save-recorded-voice", async (_event, payload) => saveRecordedVoice(payload || {}));
+ipcMain.handle("studio:delete-voice", async (_event, payload) => deleteVoiceById(payload || {}));
+ipcMain.handle("studio:save-audio-as", async (_event, payload) => saveAudioAs(payload || {}));

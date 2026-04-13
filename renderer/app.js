@@ -3,6 +3,7 @@ const state = {
   capabilities: null,
   modelMeta: null,
   isInitializing: false,
+  isDownloadingModel: false,
   isGenerating: false,
   latestResultPath: "",
   latestResultTemporary: false,
@@ -195,6 +196,51 @@ function setStartupState(_title, _description, badgeText, variant = "idle") {
 
 function setGenerateButtonBusy(isBusy) {
   refs.generateBtn.classList.toggle("generate-btn-busy", isBusy);
+}
+
+function handleModelDownloadEvent(payload = {}) {
+  const downloadState = payload.state || "";
+  const hasProgress = Number.isFinite(payload.progress);
+  const progressText = hasProgress ? `下载 ${Math.round(payload.progress)}%` : "下载中";
+
+  if (downloadState === "preparing" || downloadState === "downloading") {
+    state.isDownloadingModel = true;
+    refs.generateBtn.disabled = true;
+    refs.generateBtn.textContent = "加载中...";
+    setGenerateButtonBusy(true);
+    refs.initializeBtn.disabled = true;
+    refs.initializeBtn.textContent = hasProgress ? `下载中 ${Math.round(payload.progress)}%` : "下载模型...";
+    setWorkerState("模型下载中", "busy");
+    setStartupState("正在下载模型", payload.message || "首次启动正在下载 VoxCPM2 模型。", progressText, "busy");
+    return;
+  }
+
+  if (downloadState === "complete") {
+    state.isDownloadingModel = false;
+    refs.initializeBtn.disabled = false;
+    refs.initializeBtn.textContent = "重新加载模型";
+    addLog(payload.message || "模型下载完成。", "success");
+    return;
+  }
+
+  if (downloadState === "error") {
+    state.isDownloadingModel = false;
+    refs.initializeBtn.disabled = false;
+    refs.initializeBtn.textContent = "重新加载模型";
+    refs.generateBtn.disabled = true;
+    refs.generateBtn.textContent = "加载中...";
+    setGenerateButtonBusy(true);
+    setWorkerState("模型下载失败", "error");
+    setStartupState("模型下载失败", payload.message || "模型下载失败，请检查网络或 Python 环境。", "下载失败", "error");
+    addLog(payload.message || "模型下载失败。", "error");
+  }
+}
+
+async function ensureModelAssetsReady(force = false) {
+  const result = await window.studioApi.ensureModelAssets({ force });
+  const settings = await window.studioApi.getSettings();
+  setSettingsUI(settings);
+  return result;
 }
 
 function setSettingsUI(settings) {
@@ -1237,7 +1283,7 @@ async function runDoctor() {
 }
 
 async function initializeModel() {
-  if (state.isInitializing) {
+  if (state.isInitializing || state.isDownloadingModel) {
     return;
   }
 
@@ -1250,6 +1296,8 @@ async function initializeModel() {
     setGenerateButtonBusy(true);
     setWorkerState("模型加载中", "busy");
     setStartupState("正在加载模型", "正在自动选择 CUDA 或 CPU，并初始化 VoxCPM2。", "加载中", "busy");
+
+    await ensureModelAssetsReady(false);
 
     const settings = await window.studioApi.updateSettings({
       devicePreference: "auto"
@@ -1319,6 +1367,15 @@ async function generateAudio() {
 async function autoInitializeOnStartup() {
   addLog("启动完成，开始自动检查环境。", "info");
   setStartupState("正在准备模型环境", "应用会自动检测设备并尝试加载 VoxCPM2。", "启动中", "busy");
+
+  try {
+    await ensureModelAssetsReady(false);
+  } catch (error) {
+    setWorkerState("模型下载失败", "error");
+    addLog(error.message, "error");
+    setStartupState("模型下载失败", error.message, "下载失败", "error");
+    return;
+  }
 
   const doctor = await runDoctor();
   if (!doctor?.ok) {
@@ -1514,6 +1571,10 @@ async function bootstrap() {
   window.studioApi.onBackendEvent((event) => {
     if (event.name === "log") {
       addLog(event.payload.message, event.payload.level || "info");
+    }
+
+    if (event.name === "model-download") {
+      handleModelDownloadEvent(event.payload);
     }
 
     if (event.name === "status") {

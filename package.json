@@ -7,7 +7,9 @@
     "start": "electron .",
     "dev": "electron .",
     "install:backend": "powershell.exe -ExecutionPolicy Bypass -File .\\scripts\\install-backend.ps1",
-    "check:backend": "python backend/worker.py --doctor"
+    "check:backend": "python backend/worker.py --doctor",
+    "desktop:pack": "electron-builder --dir",
+    "desktop:build": "electron-builder"
   },
   "keywords": [
     "electron",
@@ -18,7 +20,60 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "electron": "^37.2.0",
     "python-shell": "^5.0.0"
+  },
+  "devDependencies": {
+    "electron": "^37.2.0",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "com.voxcpm.studio",
+    "productName": "VoxCPM TTS Studio",
+    "directories": {
+      "output": "release"
+    },
+    "asar": true,
+    "files": [
+      "electron/**/*",
+      "renderer/**/*",
+      "package.json",
+      "README.md",
+      "node_modules/**/*",
+      "!models/**/*",
+      "!outputs/**/*",
+      "!release/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "backend",
+        "to": "app-assets/backend",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "models/VoxCPM/src",
+        "to": "app-assets/voxcpm-src",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "win": {
+      "signAndEditExecutable": false,
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "${productName} Setup ${version}.${ext}"
+    }
   }
 }

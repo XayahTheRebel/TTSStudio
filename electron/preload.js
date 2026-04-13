@@ -18,6 +18,8 @@ function toFileUrl(targetPath) {
 contextBridge.exposeInMainWorld("studioApi", {
   getSettings: () => ipcRenderer.invoke("studio:get-settings"),
   updateSettings: (patch) => ipcRenderer.invoke("studio:update-settings", patch),
+  getModelStatus: () => ipcRenderer.invoke("studio:get-model-status"),
+  ensureModelAssets: (payload) => ipcRenderer.invoke("studio:ensure-model-assets", payload),
   doctor: () => ipcRenderer.invoke("studio:doctor"),
   initialize: () => ipcRenderer.invoke("studio:initialize"),
   capabilities: () => ipcRenderer.invoke("studio:capabilities"),
