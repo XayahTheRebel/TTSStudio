@@ -487,7 +487,7 @@ function renderEmotionPresets() {
 }
 
 function formatSpeedValue(value) {
-  return `${Number(value).toFixed(1)}x`;
+  return `${Number(value).toFixed(1)}倍速`;
 }
 
 function renderLanguageOptions(languages = LANGUAGE_OPTIONS) {
