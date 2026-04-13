@@ -205,6 +205,27 @@
       </div>
     </div>
 
+    <div id="runtimeSetupModal" class="modal-backdrop hidden">
+      <div class="modal-card runtime-modal">
+        <div class="modal-head">
+          <h2 class="section-title compact">安装后端环境</h2>
+        </div>
+        <div id="runtimeSetupMessage" class="modal-status">
+          首次启动需要先安装后端运行环境，安装完成后才可以下载模型并生成音频。
+        </div>
+        <div id="runtimeSetupHint" class="runtime-hint">
+          正在检测显卡环境并准备推荐安装方案...
+        </div>
+        <div class="runtime-actions">
+          <button id="runtimeInstallCudaBtn" class="surface-btn" type="button">安装 CUDA 版</button>
+          <button id="runtimeInstallCpuBtn" class="surface-btn muted-btn" type="button">安装 CPU 版</button>
+        </div>
+        <div id="runtimeSetupProgress" class="runtime-progress-copy">
+          请选择要安装的后端环境。
+        </div>
+      </div>
+    </div>
+
     <div id="deleteVoiceModal" class="modal-backdrop hidden">
       <div class="modal-card modal-card-compact">
         <div class="modal-head">

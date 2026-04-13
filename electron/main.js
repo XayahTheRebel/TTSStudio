@@ -31,11 +31,15 @@ function getBundledSourceDir() {
     : path.join(ROOT_DIR, "models", "VoxCPM", "src");
 }
 
+function getRuntimeRootDir() {
+  return path.join(app.getPath("userData"), "backend-runtime");
+}
+
 function getBundledPythonPath() {
   if (!isPackagedApp()) {
     return "";
   }
-  return path.join(process.resourcesPath, "app-assets", "backend-python", "python.exe");
+  return path.join(getRuntimeRootDir(), "python", "python.exe");
 }
 
 function getDefaultModelDir() {
@@ -74,6 +78,10 @@ function getSettingsPath() {
   return path.join(app.getPath("userData"), "settings.json");
 }
 
+function getRuntimeMetaPath() {
+  return path.join(getRuntimeRootDir(), "runtime.json");
+}
+
 function safeExt(filePath, fallback = ".wav") {
   const ext = path.extname(filePath || "").toLowerCase();
   return ext || fallback;
@@ -91,6 +99,22 @@ function sanitizeName(value, fallback = "voice") {
 
 function ensureDir(dirPath) {
   fs.mkdirSync(dirPath, { recursive: true });
+}
+
+function isRuntimeReady() {
+  return fs.existsSync(getBundledPythonPath()) && fs.existsSync(getRuntimeMetaPath());
+}
+
+function readRuntimeMeta() {
+  if (!fs.existsSync(getRuntimeMetaPath())) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(fs.readFileSync(getRuntimeMetaPath(), "utf8"));
+  } catch {
+    return null;
+  }
 }
 
 function isModelDirectoryReady(modelDir) {
@@ -338,6 +362,66 @@ function clearPreviewOutputs() {
   }
 }
 
+function runPowerShell(command) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(
+      "powershell.exe",
+      ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", command],
+      {
+        windowsHide: true,
+        env: {
+          ...process.env,
+          PYTHONIOENCODING: "utf-8"
+        }
+      }
+    );
+
+    let stdout = "";
+    let stderr = "";
+
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk.toString("utf8");
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk.toString("utf8");
+    });
+    child.on("error", reject);
+    child.on("close", (code) => {
+      if (code !== 0) {
+        reject(new Error(stderr.trim() || `PowerShell command failed with exit code ${code}`));
+        return;
+      }
+      resolve(stdout.trim());
+    });
+  });
+}
+
+async function detectRuntimeRecommendation() {
+  try {
+    const output = await runPowerShell(
+      "Get-CimInstance Win32_VideoController | Select-Object -ExpandProperty Name"
+    );
+    const names = output
+      .split(/\r?\n/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+    const hasNvidia = names.some((name) => /nvidia|geforce|rtx|quadro/i.test(name));
+    return {
+      recommendedTarget: hasNvidia ? "cuda" : "cpu",
+      gpuNames: names,
+      reason: hasNvidia
+        ? "检测到 NVIDIA 显卡，推荐安装 CUDA 加速版。"
+        : "未检测到可用的 NVIDIA CUDA 显卡，推荐安装 CPU 兼容版。"
+    };
+  } catch (error) {
+    return {
+      recommendedTarget: "cpu",
+      gpuNames: [],
+      reason: `未能自动检测显卡环境，推荐先安装 CPU 兼容版。${error.message ? ` (${error.message})` : ""}`
+    };
+  }
+}
+
 class OmniVoiceService {
   constructor() {
     this.shell = null;
@@ -351,6 +435,8 @@ class OmniVoiceService {
     }
     this.modelDownloadProcess = null;
     this.modelDownloadPromise = null;
+    this.runtimeInstallProcess = null;
+    this.runtimeInstallPromise = null;
   }
 
   bindWindow(window) {
@@ -493,6 +579,146 @@ class OmniVoiceService {
     };
   }
 
+  getRuntimeStatus() {
+    const meta = readRuntimeMeta();
+    return {
+      runtimeDir: getRuntimeRootDir(),
+      pythonPath: isRuntimeReady() ? getBundledPythonPath() : "",
+      exists: isRuntimeReady(),
+      packagedApp: isPackagedApp(),
+      installing: Boolean(this.runtimeInstallPromise),
+      runtime: meta
+    };
+  }
+
+  async detectRuntimeRecommendation() {
+    return detectRuntimeRecommendation();
+  }
+
+  async installBackendRuntime(target = "cpu") {
+    if (!isPackagedApp()) {
+      return {
+        ...this.getRuntimeStatus(),
+        skipped: true
+      };
+    }
+
+    if (target !== "cpu" && target !== "cuda") {
+      throw new Error("Unsupported runtime target.");
+    }
+
+    if (this.runtimeInstallPromise) {
+      return this.runtimeInstallPromise;
+    }
+
+    const scriptPath = path.join(getBackendDir(), "install_runtime.ps1");
+    const runtimeDir = getRuntimeRootDir();
+    ensureDir(path.dirname(runtimeDir));
+
+    this.pushEvent("runtime-install", {
+      state: "preparing",
+      message: `正在准备安装${target === "cuda" ? " CUDA" : " CPU"}后端运行时...`,
+      target
+    });
+
+    this.runtimeInstallPromise = new Promise((resolve, reject) => {
+      const child = spawn(
+        "powershell.exe",
+        [
+          "-NoProfile",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          scriptPath,
+          "-TargetDir",
+          runtimeDir,
+          "-TorchTarget",
+          target
+        ],
+        {
+          windowsHide: true,
+          env: {
+            ...process.env,
+            PYTHONIOENCODING: "utf-8"
+          }
+        }
+      );
+
+      this.runtimeInstallProcess = child;
+
+      const forwardJsonLines = (buffer, channel, fallbackLevel = "info") => {
+        let pending = "";
+        buffer.on("data", (chunk) => {
+          pending += chunk.toString("utf8");
+          const lines = pending.split(/\r?\n/);
+          pending = lines.pop() || "";
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed) {
+              continue;
+            }
+            try {
+              const payload = JSON.parse(trimmed);
+              if (channel === "runtime-install") {
+                this.pushEvent("runtime-install", payload);
+              } else {
+                this.pushEvent(channel, payload);
+              }
+            } catch {
+              this.pushEvent("log", {
+                level: fallbackLevel,
+                message: trimmed
+              });
+            }
+          }
+        });
+      };
+
+      forwardJsonLines(child.stdout, "runtime-install", "info");
+      forwardJsonLines(child.stderr, "log", "error");
+
+      child.on("error", (error) => {
+        this.runtimeInstallProcess = null;
+        this.runtimeInstallPromise = null;
+        this.pushEvent("runtime-install", {
+          state: "error",
+          message: error.message,
+          target
+        });
+        reject(error);
+      });
+
+      child.on("close", (code) => {
+        this.runtimeInstallProcess = null;
+        const success = code === 0 && isRuntimeReady();
+        this.runtimeInstallPromise = null;
+
+        if (!success) {
+          const error = new Error("Backend runtime installation failed.");
+          this.pushEvent("runtime-install", {
+            state: "error",
+            message: "后端运行时安装失败，请检查网络或稍后重试。",
+            target
+          });
+          reject(error);
+          return;
+        }
+
+        this.pushEvent("runtime-install", {
+          state: "complete",
+          message: "后端运行时安装完成。",
+          target
+        });
+        resolve({
+          ...this.getRuntimeStatus(),
+          installed: true
+        });
+      });
+    });
+
+    return this.runtimeInstallPromise;
+  }
+
   async ensureModelAssets(force = false) {
     if (!force && isModelDirectoryReady(this.settings.modelDir)) {
       return {
@@ -632,6 +858,12 @@ class OmniVoiceService {
       this.modelDownloadPromise = null;
     }
 
+    if (this.runtimeInstallProcess) {
+      this.runtimeInstallProcess.kill();
+      this.runtimeInstallProcess = null;
+      this.runtimeInstallPromise = null;
+    }
+
     if (this.shell) {
       try {
         await this.request("shutdown", {});
@@ -688,6 +920,11 @@ app.on("window-all-closed", async () => {
 
 ipcMain.handle("studio:get-settings", async () => service.getSettings());
 ipcMain.handle("studio:update-settings", async (_event, patch) => service.updateSettings(patch || {}));
+ipcMain.handle("studio:get-runtime-status", async () => service.getRuntimeStatus());
+ipcMain.handle("studio:detect-runtime-recommendation", async () => service.detectRuntimeRecommendation());
+ipcMain.handle("studio:install-backend-runtime", async (_event, payload) =>
+  service.installBackendRuntime(payload?.target || "cpu")
+);
 ipcMain.handle("studio:get-model-status", async () => service.getModelStatus());
 ipcMain.handle("studio:ensure-model-assets", async (_event, payload) =>
   service.ensureModelAssets(Boolean(payload?.force))

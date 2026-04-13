@@ -18,6 +18,9 @@ function toFileUrl(targetPath) {
 contextBridge.exposeInMainWorld("studioApi", {
   getSettings: () => ipcRenderer.invoke("studio:get-settings"),
   updateSettings: (patch) => ipcRenderer.invoke("studio:update-settings", patch),
+  getRuntimeStatus: () => ipcRenderer.invoke("studio:get-runtime-status"),
+  detectRuntimeRecommendation: () => ipcRenderer.invoke("studio:detect-runtime-recommendation"),
+  installBackendRuntime: (payload) => ipcRenderer.invoke("studio:install-backend-runtime", payload),
   getModelStatus: () => ipcRenderer.invoke("studio:get-model-status"),
   ensureModelAssets: (payload) => ipcRenderer.invoke("studio:ensure-model-assets", payload),
   doctor: () => ipcRenderer.invoke("studio:doctor"),

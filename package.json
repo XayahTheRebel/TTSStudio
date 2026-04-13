@@ -57,13 +57,6 @@
         "filter": [
           "**/*"
         ]
-      },
-      {
-        "from": ".build/backend-python",
-        "to": "app-assets/backend-python",
-        "filter": [
-          "**/*"
-        ]
       }
     ],
     "win": {

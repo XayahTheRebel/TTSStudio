@@ -2,8 +2,11 @@ const state = {
   settings: null,
   capabilities: null,
   modelMeta: null,
+  runtimeStatus: null,
+  runtimeRecommendation: null,
   isInitializing: false,
   isDownloadingModel: false,
+  isInstallingRuntime: false,
   isGenerating: false,
   latestResultPath: "",
   latestResultTemporary: false,
@@ -161,6 +164,12 @@ function collectRefs() {
     "voicePreviewAudio",
     "voiceCancelBtn",
     "voiceConfirmBtn",
+    "runtimeSetupModal",
+    "runtimeSetupMessage",
+    "runtimeSetupHint",
+    "runtimeInstallCudaBtn",
+    "runtimeInstallCpuBtn",
+    "runtimeSetupProgress",
     "deleteVoiceModal",
     "deleteVoiceMessage",
     "deleteVoiceCancelBtn",
@@ -241,6 +250,108 @@ async function ensureModelAssetsReady(force = false) {
   const settings = await window.studioApi.getSettings();
   setSettingsUI(settings);
   return result;
+}
+
+function setRuntimeSetupVisible(visible) {
+  refs.runtimeSetupModal.classList.toggle("hidden", !visible);
+}
+
+function updateRuntimeSetupUI() {
+  const recommendation = state.runtimeRecommendation;
+  const recommendedTarget = recommendation?.recommendedTarget || "cpu";
+  refs.runtimeInstallCudaBtn.textContent =
+    recommendedTarget === "cuda" ? "安装 CUDA 版（推荐）" : "安装 CUDA 版";
+  refs.runtimeInstallCpuBtn.textContent =
+    recommendedTarget === "cpu" ? "安装 CPU 版（推荐）" : "安装 CPU 版";
+  refs.runtimeSetupHint.textContent =
+    recommendation?.reason || "可根据你的设备环境选择 CUDA 加速版或 CPU 兼容版。";
+}
+
+async function showRuntimeSetup() {
+  state.runtimeStatus = await window.studioApi.getRuntimeStatus();
+  if (!state.runtimeStatus?.packagedApp || state.runtimeStatus?.exists) {
+    setRuntimeSetupVisible(false);
+    return false;
+  }
+
+  state.runtimeRecommendation = await window.studioApi.detectRuntimeRecommendation();
+  updateRuntimeSetupUI();
+  refs.runtimeSetupMessage.textContent =
+    "首次启动需要先安装后端运行环境。安装完成后，程序会继续下载模型并自动初始化。";
+  refs.runtimeSetupProgress.textContent = "请选择要安装的后端环境。";
+  refs.initializeBtn.disabled = true;
+  refs.initializeBtn.textContent = "等待安装后端";
+  refs.generateBtn.disabled = true;
+  refs.generateBtn.textContent = "加载中...";
+  setGenerateButtonBusy(true);
+  setWorkerState("等待安装后端", "busy");
+  setStartupState("等待安装后端环境", state.runtimeRecommendation.reason, "待安装", "busy");
+  setRuntimeSetupVisible(true);
+  return true;
+}
+
+function handleRuntimeInstallEvent(payload = {}) {
+  const installState = payload.state || "";
+  const hasProgress = Number.isFinite(payload.progress);
+  const progressText = hasProgress ? `安装 ${Math.round(payload.progress)}%` : "安装中";
+
+  if (installState === "preparing" || installState === "downloading" || installState === "extracting" || installState === "installing") {
+    state.isInstallingRuntime = true;
+    refs.runtimeInstallCudaBtn.disabled = true;
+    refs.runtimeInstallCpuBtn.disabled = true;
+    refs.initializeBtn.disabled = true;
+    refs.initializeBtn.textContent = "安装中...";
+    refs.runtimeSetupProgress.textContent = payload.message || "正在安装后端运行环境...";
+    refs.generateBtn.disabled = true;
+    refs.generateBtn.textContent = "加载中...";
+    setGenerateButtonBusy(true);
+    setWorkerState("安装后端中", "busy");
+    setStartupState("正在安装后端环境", payload.message || "正在安装后端运行环境...", progressText, "busy");
+    return;
+  }
+
+  if (installState === "complete") {
+    state.isInstallingRuntime = false;
+    refs.initializeBtn.disabled = false;
+    refs.initializeBtn.textContent = "重新加载模型";
+    refs.runtimeSetupProgress.textContent = payload.message || "后端运行环境安装完成。";
+    addLog(payload.message || "后端运行环境安装完成。", "success");
+    return;
+  }
+
+  if (installState === "error") {
+    state.isInstallingRuntime = false;
+    refs.runtimeInstallCudaBtn.disabled = false;
+    refs.runtimeInstallCpuBtn.disabled = false;
+    refs.initializeBtn.disabled = false;
+    refs.initializeBtn.textContent = "重新加载模型";
+    refs.runtimeSetupProgress.textContent = payload.message || "后端运行环境安装失败，请重试。";
+    setWorkerState("安装后端失败", "error");
+    setStartupState("后端环境安装失败", payload.message || "后端运行环境安装失败，请检查网络后重试。", "失败", "error");
+    addLog(payload.message || "后端运行环境安装失败。", "error");
+  }
+}
+
+async function installBackendRuntime(target) {
+  if (state.isInstallingRuntime) {
+    return;
+  }
+
+  try {
+    state.isInstallingRuntime = true;
+    await window.studioApi.installBackendRuntime({ target });
+    state.runtimeStatus = await window.studioApi.getRuntimeStatus();
+    setRuntimeSetupVisible(false);
+    refs.runtimeInstallCudaBtn.disabled = false;
+    refs.runtimeInstallCpuBtn.disabled = false;
+    await continueStartupAfterRuntimeReady();
+  } catch (error) {
+    state.isInstallingRuntime = false;
+    refs.runtimeInstallCudaBtn.disabled = false;
+    refs.runtimeInstallCpuBtn.disabled = false;
+    refs.runtimeSetupProgress.textContent = error.message;
+    addLog(error.message, "error");
+  }
 }
 
 function setSettingsUI(settings) {
@@ -1386,6 +1497,13 @@ async function autoInitializeOnStartup() {
   await initializeModel();
 }
 
+async function continueStartupAfterRuntimeReady() {
+  const capabilities = await window.studioApi.capabilities();
+  state.capabilities = capabilities;
+  addLog("前端已准备完毕。", "success");
+  await autoInitializeOnStartup();
+}
+
 async function bootstrap() {
   collectRefs();
   setDiagnosticPanel(false);
@@ -1431,6 +1549,8 @@ async function bootstrap() {
     refs.audioSpeedValue.textContent = formatSpeedValue(refs.audioSpeedInput.value);
     refs.resultAudio.playbackRate = getAudioPlaybackRate(refs.audioSpeedInput.value);
   });
+  refs.runtimeInstallCudaBtn.addEventListener("click", () => installBackendRuntime("cuda"));
+  refs.runtimeInstallCpuBtn.addEventListener("click", () => installBackendRuntime("cpu"));
   refs.voiceNameInput.addEventListener("input", syncVoiceConfirmState);
   refs.voiceCancelBtn.addEventListener("click", async () => {
     await stopActiveRecording();
@@ -1577,6 +1697,10 @@ async function bootstrap() {
       handleModelDownloadEvent(event.payload);
     }
 
+    if (event.name === "runtime-install") {
+      handleRuntimeInstallEvent(event.payload);
+    }
+
     if (event.name === "status") {
       if (event.payload.state === "ready") {
         setWorkerState("模型已就绪", "ready");
@@ -1625,10 +1749,12 @@ async function bootstrap() {
     state.voices = mapCustomVoices(customVoices);
     renderVoiceList();
 
-    const capabilities = await window.studioApi.capabilities();
-    state.capabilities = capabilities;
-    addLog("前端已准备完毕。", "success");
-    await autoInitializeOnStartup();
+    const runtimeSetupShown = await showRuntimeSetup();
+    if (runtimeSetupShown) {
+      return;
+    }
+
+    await continueStartupAfterRuntimeReady();
   } catch (error) {
     addLog(`启动阶段出现问题：${error.message}`, "error");
   }
