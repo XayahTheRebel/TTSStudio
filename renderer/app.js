@@ -487,7 +487,22 @@ function renderEmotionPresets() {
 }
 
 function formatSpeedValue(value) {
-  return `${Number(value).toFixed(1)}倍速`;
+  const rate = getAudioPlaybackRate(value);
+  const roundedRate = Math.round(rate * 10) / 10;
+  return Number.isInteger(roundedRate) ? `${roundedRate}倍速` : `${roundedRate.toFixed(1)}倍速`;
+}
+
+function getAudioPlaybackRate(value) {
+  const sliderValue = Number.parseFloat(value);
+  if (!Number.isFinite(sliderValue)) {
+    return 1;
+  }
+
+  if (sliderValue <= 50) {
+    return 0.5 + (sliderValue / 50) * 0.5;
+  }
+
+  return 1 + ((sliderValue - 50) / 50) * 1;
 }
 
 function renderLanguageOptions(languages = LANGUAGE_OPTIONS) {
@@ -696,7 +711,7 @@ function applyResult(result) {
   state.latestResultPath = result.outputPath;
   state.latestResultTemporary = Boolean(result.isTemporary);
   refs.resultAudio.src = window.studioApi.toFileUrl(result.outputPath);
-  refs.resultAudio.playbackRate = Number.parseFloat(refs.audioSpeedInput.value || "1");
+  refs.resultAudio.playbackRate = getAudioPlaybackRate(refs.audioSpeedInput.value);
 }
 
 function buildGeneratePayload() {
@@ -1324,7 +1339,7 @@ async function bootstrap() {
   setGenerateButtonBusy(true);
   refs.speechSpeedValue.textContent = formatSpeechSpeedValue(refs.speechSpeedInput.value);
   refs.audioSpeedValue.textContent = formatSpeedValue(refs.audioSpeedInput.value);
-  refs.resultAudio.playbackRate = Number.parseFloat(refs.audioSpeedInput.value || "1");
+  refs.resultAudio.playbackRate = getAudioPlaybackRate(refs.audioSpeedInput.value);
 
   refs.doctorBtn.addEventListener("click", runDoctor);
   refs.initializeBtn.addEventListener("click", initializeModel);
@@ -1357,7 +1372,7 @@ async function bootstrap() {
   });
   refs.audioSpeedInput.addEventListener("input", () => {
     refs.audioSpeedValue.textContent = formatSpeedValue(refs.audioSpeedInput.value);
-    refs.resultAudio.playbackRate = Number.parseFloat(refs.audioSpeedInput.value || "1");
+    refs.resultAudio.playbackRate = getAudioPlaybackRate(refs.audioSpeedInput.value);
   });
   refs.voiceNameInput.addEventListener("input", syncVoiceConfirmState);
   refs.voiceCancelBtn.addEventListener("click", async () => {
