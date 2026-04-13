@@ -96,7 +96,7 @@ const SPEECH_SPEED_PRESETS = [
   { value: "2", label: "语速较慢", prompt: "slightly slow speaking pace" },
   { value: "3", label: "语速中等", prompt: "moderate speaking pace" },
   { value: "4", label: "语速较快", prompt: "slightly fast speaking pace" },
-  { value: "5", label: "语速非常快", prompt: "very fast speaking pace" }
+  { value: "5", label: "语速很快", prompt: "very fast speaking pace" }
 ];
 
 const DEFAULT_STYLE_DESCRIPTION = [
