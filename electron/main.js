@@ -645,11 +645,19 @@ class OmniVoiceService {
       );
 
       this.runtimeInstallProcess = child;
+      let rawStdout = "";
+      let rawStderr = "";
 
       const forwardJsonLines = (buffer, channel, fallbackLevel = "info") => {
         let pending = "";
         buffer.on("data", (chunk) => {
-          pending += chunk.toString("utf8");
+          const text = chunk.toString("utf8");
+          pending += text;
+          if (channel === "runtime-install") {
+            rawStdout += text;
+          } else {
+            rawStderr += text;
+          }
           const lines = pending.split(/\r?\n/);
           pending = lines.pop() || "";
           for (const line of lines) {
@@ -694,10 +702,18 @@ class OmniVoiceService {
         this.runtimeInstallPromise = null;
 
         if (!success) {
-          const error = new Error("Backend runtime installation failed.");
+          const details = [rawStderr, rawStdout]
+            .map((text) => String(text || "").trim())
+            .filter(Boolean)
+            .map((text) => text.split(/\r?\n/).slice(-8).join(" | "))
+            .find(Boolean);
+          const message = details
+            ? `Backend runtime installation failed: ${details}`
+            : "Backend runtime installation failed.";
+          const error = new Error(message);
           this.pushEvent("runtime-install", {
             state: "error",
-            message: "后端运行时安装失败，请检查网络或稍后重试。",
+            message: details || "后端运行时安装失败，请检查网络或稍后重试。",
             target
           });
           reject(error);

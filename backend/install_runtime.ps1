@@ -27,6 +27,21 @@ function Emit-Json {
     $payload | ConvertTo-Json -Compress
 }
 
+function Invoke-NativeOrThrow {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$FilePath,
+
+        [Parameter(ValueFromRemainingArguments = $true)]
+        [string[]]$ArgumentList
+    )
+
+    & $FilePath @ArgumentList
+    if ($LASTEXITCODE -ne 0) {
+        throw "Command failed with exit code ${LASTEXITCODE}: $FilePath $($ArgumentList -join ' ')"
+    }
+}
+
 $pythonVersion = "3.11.9"
 $pythonZipUrl = "https://www.python.org/ftp/python/$pythonVersion/python-$pythonVersion-embed-amd64.zip"
 $getPipUrl = "https://bootstrap.pypa.io/get-pip.py"
@@ -82,19 +97,19 @@ if (-not (Test-Path $pythonExe)) {
 }
 
 Write-Output (Emit-Json -State "installing" -Message "Installing pip..." -Progress 50)
-& $pythonExe $getPipPath --no-warn-script-location
+Invoke-NativeOrThrow $pythonExe $getPipPath "--no-warn-script-location"
 
 Write-Output (Emit-Json -State "installing" -Message "Installing base packaging tools..." -Progress 58)
-& $pythonExe -m pip install --upgrade pip setuptools wheel --no-warn-script-location
+Invoke-NativeOrThrow $pythonExe "-m" "pip" "install" "--upgrade" "pip" "setuptools" "wheel" "--no-warn-script-location"
 
 Write-Output (Emit-Json -State "installing" -Message "Installing PyTorch runtime..." -Progress 68)
-& $pythonExe -m pip install --no-warn-script-location torch==2.8.0 torchaudio==2.8.0 --index-url $torchIndex
+Invoke-NativeOrThrow $pythonExe "-m" "pip" "install" "--no-warn-script-location" "torch==2.8.0" "torchaudio==2.8.0" "--index-url" $torchIndex
 
 Write-Output (Emit-Json -State "installing" -Message "Installing voice dependencies..." -Progress 82)
-& $pythonExe -m pip install --no-warn-script-location `
-    transformers accelerate numpy soundfile pydub huggingface_hub sentencepiece `
-    einops inflect addict wetext modelscope datasets pydantic tqdm simplejson `
-    sortedcontainers librosa matplotlib funasr argbind safetensors "fsspec<=2025.3.0"
+Invoke-NativeOrThrow $pythonExe "-m" "pip" "install" "--no-warn-script-location" `
+    "transformers" "accelerate" "numpy" "soundfile" "pydub" "huggingface_hub" "sentencepiece" `
+    "einops" "inflect" "addict" "wetext" "modelscope" "datasets" "pydantic" "tqdm" "simplejson" `
+    "sortedcontainers" "librosa" "matplotlib" "funasr" "argbind" "safetensors" "fsspec<=2025.3.0"
 
 $runtimeMeta = @{
     installedAt = (Get-Date).ToString("o")
