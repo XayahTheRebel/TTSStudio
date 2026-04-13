@@ -32,9 +32,10 @@ function getBundledSourceDir() {
 }
 
 function getBundledPythonPath() {
-  return isPackagedApp()
-    ? path.join(process.resourcesPath, "app-assets", "backend-python", "python.exe")
-    : path.join(ROOT_DIR, ".build", "backend-python", "python.exe");
+  if (!isPackagedApp()) {
+    return "";
+  }
+  return path.join(process.resourcesPath, "app-assets", "backend-python", "python.exe");
 }
 
 function getDefaultModelDir() {
