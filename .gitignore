@@ -4,6 +4,7 @@ dist/
 release/
 outputs/
 models/
+.build/
 __pycache__/
 *.pyc
 *.log

@@ -31,6 +31,12 @@ function getBundledSourceDir() {
     : path.join(ROOT_DIR, "models", "VoxCPM", "src");
 }
 
+function getBundledPythonPath() {
+  return isPackagedApp()
+    ? path.join(process.resourcesPath, "app-assets", "backend-python", "python.exe")
+    : path.join(ROOT_DIR, ".build", "backend-python", "python.exe");
+}
+
 function getDefaultModelDir() {
   return isPackagedApp()
     ? path.join(app.getPath("userData"), "models", "VoxCPM2-HF")
@@ -156,6 +162,11 @@ function saveSettings(nextSettings) {
 }
 
 function resolvePythonPath(storedPath) {
+  const bundledPython = getBundledPythonPath();
+  if (bundledPython && fs.existsSync(bundledPython)) {
+    return bundledPython;
+  }
+
   if (storedPath && fs.existsSync(storedPath)) {
     return storedPath;
   }
