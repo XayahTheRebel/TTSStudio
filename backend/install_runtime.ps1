@@ -2,7 +2,7 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$TargetDir,
 
-    [ValidateSet("cpu", "cuda")]
+    [ValidateSet("cpu", "cuda", "cuda126", "cuda128", "cuda129")]
     [string]$TorchTarget = "cpu"
 )
 
@@ -50,7 +50,24 @@ $pythonDir = Join-Path $runtimeRoot "python"
 $tempDir = Join-Path $runtimeRoot "_download"
 $pythonZipPath = Join-Path $tempDir "python-embed.zip"
 $getPipPath = Join-Path $tempDir "get-pip.py"
-$torchIndex = if ($TorchTarget -eq "cuda") { "https://download.pytorch.org/whl/cu128" } else { "https://download.pytorch.org/whl/cpu" }
+$normalizedTorchTarget = if ($TorchTarget -eq "cuda") { "cuda128" } else { $TorchTarget }
+$torchIndexMap = @{
+    cpu = "https://download.pytorch.org/whl/cpu"
+    cuda126 = "https://download.pytorch.org/whl/cu126"
+    cuda128 = "https://download.pytorch.org/whl/cu128"
+    cuda129 = "https://download.pytorch.org/whl/cu129"
+}
+$torchLabelMap = @{
+    cpu = "CPU"
+    cuda126 = "CUDA 12.6"
+    cuda128 = "CUDA 12.8"
+    cuda129 = "CUDA 12.9"
+}
+$torchIndex = $torchIndexMap[$normalizedTorchTarget]
+$torchLabel = $torchLabelMap[$normalizedTorchTarget]
+if (-not $torchIndex) {
+    throw "Unsupported TorchTarget: $TorchTarget"
+}
 
 Write-Output (Emit-Json -State "preparing" -Message "Preparing backend runtime installation..." -Progress 5)
 
@@ -102,7 +119,7 @@ Invoke-NativeOrThrow $pythonExe $getPipPath "--no-warn-script-location"
 Write-Output (Emit-Json -State "installing" -Message "Installing base packaging tools..." -Progress 58)
 Invoke-NativeOrThrow $pythonExe "-m" "pip" "install" "--upgrade" "pip" "setuptools" "wheel" "--no-warn-script-location"
 
-Write-Output (Emit-Json -State "installing" -Message "Installing PyTorch runtime..." -Progress 68)
+Write-Output (Emit-Json -State "installing" -Message "Installing PyTorch runtime ($torchLabel)..." -Progress 68)
 Invoke-NativeOrThrow $pythonExe "-m" "pip" "install" "--no-warn-script-location" "torch==2.8.0" "torchaudio==2.8.0" "--index-url" $torchIndex
 
 Write-Output (Emit-Json -State "installing" -Message "Installing voice dependencies..." -Progress 82)
@@ -113,7 +130,9 @@ Invoke-NativeOrThrow $pythonExe "-m" "pip" "install" "--no-warn-script-location"
 
 $runtimeMeta = @{
     installedAt = (Get-Date).ToString("o")
-    torchTarget = $TorchTarget
+    torchTarget = $normalizedTorchTarget
+    torchLabel = $torchLabel
+    torchIndex = $torchIndex
     pythonVersion = $pythonVersion
 }
 $runtimeMeta | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $runtimeRoot "runtime.json") -Encoding UTF8

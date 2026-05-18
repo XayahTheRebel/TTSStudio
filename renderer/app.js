@@ -167,7 +167,9 @@ function collectRefs() {
     "runtimeSetupModal",
     "runtimeSetupMessage",
     "runtimeSetupHint",
+    "runtimeInstallCuda126Btn",
     "runtimeInstallCudaBtn",
+    "runtimeInstallCuda129Btn",
     "runtimeInstallCpuBtn",
     "runtimeSetupProgress",
     "deleteVoiceModal",
@@ -256,6 +258,27 @@ function setRuntimeSetupVisible(visible) {
   refs.runtimeSetupModal.classList.toggle("hidden", !visible);
 }
 
+function getRuntimeTargetButtons() {
+  return [
+    { target: "cuda126", label: "CUDA 12.6", button: refs.runtimeInstallCuda126Btn },
+    { target: "cuda128", label: "CUDA 12.8", button: refs.runtimeInstallCudaBtn },
+    { target: "cuda129", label: "CUDA 12.9", button: refs.runtimeInstallCuda129Btn },
+    { target: "cpu", label: "CPU", button: refs.runtimeInstallCpuBtn }
+  ].filter((item) => item.button);
+}
+
+function setRuntimeInstallButtonsDisabled(disabled) {
+  getRuntimeTargetButtons().forEach(({ button }) => {
+    button.disabled = disabled;
+  });
+}
+
+function updateRuntimeTargetButtonLabels(recommendedTarget) {
+  getRuntimeTargetButtons().forEach(({ target, label, button }) => {
+    button.textContent = target === recommendedTarget ? `${label} (Recommended)` : label;
+  });
+}
+
 function updateRuntimeSetupUI() {
   const recommendation = state.runtimeRecommendation;
   const recommendedTarget = recommendation?.recommendedTarget || "cpu";
@@ -276,6 +299,7 @@ async function showRuntimeSetup() {
 
   state.runtimeRecommendation = await window.studioApi.detectRuntimeRecommendation();
   updateRuntimeSetupUI();
+  updateRuntimeTargetButtonLabels(state.runtimeRecommendation?.recommendedTarget || "cpu");
   refs.runtimeSetupMessage.textContent =
     "首次启动需要先安装后端运行环境。安装完成后，程序会继续下载模型并自动初始化。";
   refs.runtimeSetupProgress.textContent = "请选择要安装的后端环境。";
@@ -299,6 +323,7 @@ function handleRuntimeInstallEvent(payload = {}) {
     state.isInstallingRuntime = true;
     refs.runtimeInstallCudaBtn.disabled = true;
     refs.runtimeInstallCpuBtn.disabled = true;
+    setRuntimeInstallButtonsDisabled(true);
     refs.initializeBtn.disabled = true;
     refs.initializeBtn.textContent = "安装中...";
     refs.runtimeSetupProgress.textContent = payload.message || "正在安装后端运行环境...";
@@ -323,6 +348,7 @@ function handleRuntimeInstallEvent(payload = {}) {
     state.isInstallingRuntime = false;
     refs.runtimeInstallCudaBtn.disabled = false;
     refs.runtimeInstallCpuBtn.disabled = false;
+    setRuntimeInstallButtonsDisabled(false);
     refs.initializeBtn.disabled = false;
     refs.initializeBtn.textContent = "重新加载模型";
     refs.runtimeSetupProgress.textContent = payload.message || "后端运行环境安装失败，请重试。";
@@ -344,11 +370,13 @@ async function installBackendRuntime(target) {
     setRuntimeSetupVisible(false);
     refs.runtimeInstallCudaBtn.disabled = false;
     refs.runtimeInstallCpuBtn.disabled = false;
+    setRuntimeInstallButtonsDisabled(false);
     await continueStartupAfterRuntimeReady();
   } catch (error) {
     state.isInstallingRuntime = false;
     refs.runtimeInstallCudaBtn.disabled = false;
     refs.runtimeInstallCpuBtn.disabled = false;
+    setRuntimeInstallButtonsDisabled(false);
     refs.runtimeSetupProgress.textContent = error.message;
     addLog(error.message, "error");
   }
@@ -1549,7 +1577,9 @@ async function bootstrap() {
     refs.audioSpeedValue.textContent = formatSpeedValue(refs.audioSpeedInput.value);
     refs.resultAudio.playbackRate = getAudioPlaybackRate(refs.audioSpeedInput.value);
   });
-  refs.runtimeInstallCudaBtn.addEventListener("click", () => installBackendRuntime("cuda"));
+  refs.runtimeInstallCuda126Btn.addEventListener("click", () => installBackendRuntime("cuda126"));
+  refs.runtimeInstallCudaBtn.addEventListener("click", () => installBackendRuntime("cuda128"));
+  refs.runtimeInstallCuda129Btn.addEventListener("click", () => installBackendRuntime("cuda129"));
   refs.runtimeInstallCpuBtn.addEventListener("click", () => installBackendRuntime("cpu"));
   refs.voiceNameInput.addEventListener("input", syncVoiceConfirmState);
   refs.voiceCancelBtn.addEventListener("click", async () => {

@@ -8,6 +8,24 @@ const ROOT_DIR = path.resolve(__dirname, "..");
 const RENDERER_DIR = path.join(ROOT_DIR, "renderer");
 const MODEL_REPO_ID = "openbmb/VoxCPM2";
 const MODEL_DOWNLOAD_ENDPOINTS = ["https://hf-mirror.com", "https://huggingface.co"];
+const RUNTIME_TARGETS = {
+  cpu: {
+    label: "CPU",
+    torchIndex: "https://download.pytorch.org/whl/cpu"
+  },
+  cuda126: {
+    label: "CUDA 12.6",
+    torchIndex: "https://download.pytorch.org/whl/cu126"
+  },
+  cuda128: {
+    label: "CUDA 12.8",
+    torchIndex: "https://download.pytorch.org/whl/cu128"
+  },
+  cuda129: {
+    label: "CUDA 12.9",
+    torchIndex: "https://download.pytorch.org/whl/cu129"
+  }
+};
 const CONDA_PY311 = path.join(
   process.env.USERPROFILE || "C:\\Users\\24509",
   "anaconda3",
@@ -448,6 +466,81 @@ async function detectRuntimeRecommendation() {
   }
 }
 
+function normalizeRuntimeTarget(target) {
+  if (target === "cuda") {
+    return "cuda128";
+  }
+  return RUNTIME_TARGETS[target] ? target : "";
+}
+
+function chooseCudaRuntimeTarget(cudaVersionText) {
+  const cudaVersion = Number.parseFloat(cudaVersionText || "");
+  if (Number.isFinite(cudaVersion)) {
+    if (cudaVersion >= 12.9) {
+      return "cuda129";
+    }
+    if (cudaVersion >= 12.8) {
+      return "cuda128";
+    }
+    if (cudaVersion >= 12.6) {
+      return "cuda126";
+    }
+  }
+  return "cuda128";
+}
+
+async function detectNvidiaSmiInfo() {
+  try {
+    const output = await runPowerShell("nvidia-smi");
+    const cudaMatch = output.match(/CUDA Version:\s*([0-9.]+)/i);
+    const driverMatch = output.match(/Driver Version:\s*([0-9.]+)/i);
+    return {
+      cudaVersion: cudaMatch ? cudaMatch[1] : "",
+      driverVersion: driverMatch ? driverMatch[1] : ""
+    };
+  } catch {
+    return {
+      cudaVersion: "",
+      driverVersion: ""
+    };
+  }
+}
+
+async function detectRuntimeRecommendation() {
+  try {
+    const output = await runPowerShell(
+      "Get-CimInstance Win32_VideoController | Select-Object -ExpandProperty Name"
+    );
+    const names = output
+      .split(/\r?\n/)
+      .map((item) => item.trim())
+      .filter(Boolean);
+    const hasNvidia = names.some((name) => /nvidia|geforce|rtx|quadro/i.test(name));
+    const nvidiaInfo = hasNvidia ? await detectNvidiaSmiInfo() : { cudaVersion: "", driverVersion: "" };
+    const recommendedTarget = hasNvidia ? chooseCudaRuntimeTarget(nvidiaInfo.cudaVersion) : "cpu";
+
+    return {
+      recommendedTarget,
+      gpuNames: names,
+      cudaVersion: nvidiaInfo.cudaVersion,
+      driverVersion: nvidiaInfo.driverVersion,
+      runtimeTargets: RUNTIME_TARGETS,
+      reason: hasNvidia
+        ? `Detected NVIDIA GPU${nvidiaInfo.cudaVersion ? ` with CUDA ${nvidiaInfo.cudaVersion}` : ""}; recommended ${RUNTIME_TARGETS[recommendedTarget].label}.`
+        : "No NVIDIA GPU detected; CPU runtime is recommended."
+    };
+  } catch (error) {
+    return {
+      recommendedTarget: "cpu",
+      gpuNames: [],
+      cudaVersion: "",
+      driverVersion: "",
+      runtimeTargets: RUNTIME_TARGETS,
+      reason: `GPU detection failed; CPU runtime is recommended.${error.message ? ` (${error.message})` : ""}`
+    };
+  }
+}
+
 class OmniVoiceService {
   constructor() {
     this.shell = null;
@@ -614,6 +707,7 @@ class OmniVoiceService {
       exists: isRuntimeReady(),
       packagedApp: isPackagedApp(),
       installing: Boolean(this.runtimeInstallPromise),
+      runtimeTargets: RUNTIME_TARGETS,
       runtime: meta
     };
   }
@@ -630,9 +724,12 @@ class OmniVoiceService {
       };
     }
 
-    if (target !== "cpu" && target !== "cuda") {
+    const normalizedTarget = normalizeRuntimeTarget(target);
+    if (!normalizedTarget) {
       throw new Error("Unsupported runtime target.");
     }
+    const targetInfo = RUNTIME_TARGETS[normalizedTarget];
+    target = normalizedTarget === "cpu" ? "cpu" : "cuda";
 
     if (this.runtimeInstallPromise) {
       return this.runtimeInstallPromise;
@@ -645,7 +742,7 @@ class OmniVoiceService {
     this.pushEvent("runtime-install", {
       state: "preparing",
       message: `正在准备安装${target === "cuda" ? " CUDA" : " CPU"}后端运行时...`,
-      target
+      target: normalizedTarget
     });
 
     this.runtimeInstallPromise = new Promise((resolve, reject) => {
@@ -660,7 +757,7 @@ class OmniVoiceService {
           "-TargetDir",
           runtimeDir,
           "-TorchTarget",
-          target
+          normalizedTarget
         ],
         {
           windowsHide: true,
@@ -718,7 +815,7 @@ class OmniVoiceService {
         this.pushEvent("runtime-install", {
           state: "error",
           message: error.message,
-          target
+          target: normalizedTarget
         });
         reject(error);
       });
@@ -741,7 +838,7 @@ class OmniVoiceService {
           this.pushEvent("runtime-install", {
             state: "error",
             message: details || "后端运行时安装失败，请检查网络或稍后重试。",
-            target
+            target: normalizedTarget
           });
           reject(error);
           return;
@@ -750,7 +847,7 @@ class OmniVoiceService {
         this.pushEvent("runtime-install", {
           state: "complete",
           message: "后端运行时安装完成。",
-          target
+          target: normalizedTarget
         });
         resolve({
           ...this.getRuntimeStatus(),

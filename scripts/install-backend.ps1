@@ -1,6 +1,6 @@
 param(
-    [ValidateSet("cuda", "cpu")]
-    [string]$TorchTarget = "cuda"
+    [ValidateSet("cuda", "cuda126", "cuda128", "cuda129", "cpu")]
+    [string]$TorchTarget = "cuda128"
 )
 
 $ErrorActionPreference = "Stop"
@@ -24,12 +24,19 @@ else {
 
 & $python -m pip install --upgrade pip setuptools wheel
 
-if ($TorchTarget -eq "cuda") {
-    & $python -m pip install torch==2.8.0 torchaudio==2.8.0 --index-url https://download.pytorch.org/whl/cu128
+$normalizedTorchTarget = if ($TorchTarget -eq "cuda") { "cuda128" } else { $TorchTarget }
+$torchIndexMap = @{
+    cpu = "https://download.pytorch.org/whl/cpu"
+    cuda126 = "https://download.pytorch.org/whl/cu126"
+    cuda128 = "https://download.pytorch.org/whl/cu128"
+    cuda129 = "https://download.pytorch.org/whl/cu129"
 }
-else {
-    & $python -m pip install torch==2.8.0 torchaudio==2.8.0
+$torchIndex = $torchIndexMap[$normalizedTorchTarget]
+if (-not $torchIndex) {
+    throw "Unsupported TorchTarget: $TorchTarget"
 }
+
+& $python -m pip install torch==2.8.0 torchaudio==2.8.0 --index-url $torchIndex
 
 & $python -m pip install transformers accelerate numpy soundfile pydub huggingface_hub sentencepiece
 & $python -m pip install einops inflect addict wetext modelscope datasets pydantic tqdm simplejson sortedcontainers librosa matplotlib funasr argbind safetensors
