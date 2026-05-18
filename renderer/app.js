@@ -109,6 +109,8 @@ const DEFAULT_STYLE_DESCRIPTION = [
   "relaxed and natural expression"
 ].join(", ");
 
+const DEFAULT_RUNTIME_SPEED_TEXT = "Network: waiting for download activity...";
+
 EMOTION_PRESETS.splice(
   0,
   EMOTION_PRESETS.length,
@@ -182,6 +184,20 @@ function collectRefs() {
   ].forEach((id) => {
     refs[id] = $(id);
   });
+
+  ensureRuntimeSpeedNode();
+}
+
+function ensureRuntimeSpeedNode() {
+  let speedNode = $("runtimeSetupSpeed");
+  if (!speedNode) {
+    speedNode = document.createElement("div");
+    speedNode.id = "runtimeSetupSpeed";
+    speedNode.className = "runtime-speed-copy";
+    speedNode.textContent = DEFAULT_RUNTIME_SPEED_TEXT;
+    refs.runtimeSetupProgress.insertAdjacentElement("afterend", speedNode);
+  }
+  refs.runtimeSetupSpeed = speedNode;
 }
 
 function addLog(message, level = "info") {
@@ -210,6 +226,12 @@ function setStartupState(_title, _description, badgeText, variant = "idle") {
 
 function setGenerateButtonBusy(isBusy) {
   refs.generateBtn.classList.toggle("generate-btn-busy", isBusy);
+}
+
+function setRuntimeSpeedText(speedText = "") {
+  const hasSpeed = Boolean(speedText);
+  refs.runtimeSetupSpeed.textContent = hasSpeed ? `Network: ${speedText}` : DEFAULT_RUNTIME_SPEED_TEXT;
+  refs.runtimeSetupSpeed.dataset.active = hasSpeed ? "true" : "false";
 }
 
 function handleModelDownloadEvent(payload = {}) {
@@ -306,6 +328,7 @@ async function showRuntimeSetup() {
   state.runtimeRecommendation = await window.studioApi.detectRuntimeRecommendation();
   updateRuntimeSetupUI();
   updateRuntimeTargetButtonLabels(state.runtimeRecommendation?.recommendedTarget || "cpu");
+  setRuntimeSpeedText("");
   refs.runtimeSetupMessage.textContent =
     "首次启动需要先安装后端运行环境。安装完成后，程序会继续下载模型并自动初始化。";
   refs.runtimeSetupProgress.textContent = "请选择要安装的后端环境。";
@@ -323,6 +346,10 @@ async function showRuntimeSetup() {
 function handleRuntimeInstallEvent(payload = {}) {
   const installState = payload.state || "";
   const hasProgress = Number.isFinite(payload.progress);
+  const networkSpeed = typeof payload.networkSpeed === "string" ? payload.networkSpeed.trim() : "";
+  if (networkSpeed) {
+    setRuntimeSpeedText(networkSpeed);
+  }
   const progressText = hasProgress ? `安装 ${Math.round(payload.progress)}%` : "安装中";
 
   if (installState === "preparing" || installState === "downloading" || installState === "extracting" || installState === "installing") {
@@ -343,6 +370,7 @@ function handleRuntimeInstallEvent(payload = {}) {
 
   if (installState === "complete") {
     state.isInstallingRuntime = false;
+    setRuntimeSpeedText("");
     refs.initializeBtn.disabled = false;
     refs.initializeBtn.textContent = "重新加载模型";
     refs.runtimeSetupProgress.textContent = payload.message || "后端运行环境安装完成。";
@@ -352,6 +380,7 @@ function handleRuntimeInstallEvent(payload = {}) {
 
   if (installState === "error") {
     state.isInstallingRuntime = false;
+    setRuntimeSpeedText("");
     refs.runtimeInstallCudaBtn.disabled = false;
     refs.runtimeInstallCpuBtn.disabled = false;
     setRuntimeInstallButtonsDisabled(false);
@@ -384,6 +413,7 @@ async function installBackendRuntime(target) {
     refs.runtimeInstallCpuBtn.disabled = false;
     setRuntimeInstallButtonsDisabled(false);
     refs.runtimeSetupProgress.textContent = error.message;
+    setRuntimeSpeedText("");
     addLog(error.message, "error");
   }
 }

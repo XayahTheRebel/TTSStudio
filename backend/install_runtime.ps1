@@ -12,7 +12,8 @@ function Emit-Json {
     param(
         [string]$State,
         [string]$Message,
-        [double]$Progress = -1
+        [double]$Progress = -1,
+        [string]$NetworkSpeed = ""
     )
 
     $payload = @{
@@ -22,6 +23,10 @@ function Emit-Json {
 
     if ($Progress -ge 0) {
         $payload.progress = $Progress
+    }
+
+    if ($NetworkSpeed) {
+        $payload.networkSpeed = $NetworkSpeed
     }
 
     $payload | ConvertTo-Json -Compress
@@ -39,6 +44,107 @@ function Invoke-NativeOrThrow {
     & $FilePath @ArgumentList
     if ($LASTEXITCODE -ne 0) {
         throw "Command failed with exit code ${LASTEXITCODE}: $FilePath $($ArgumentList -join ' ')"
+    }
+}
+
+function Get-NetworkBytesReceived {
+    $total = 0L
+    $upStatus = [System.Net.NetworkInformation.OperationalStatus]::Up
+    $loopbackType = [System.Net.NetworkInformation.NetworkInterfaceType]::Loopback
+    $tunnelType = [System.Net.NetworkInformation.NetworkInterfaceType]::Tunnel
+
+    foreach ($adapter in [System.Net.NetworkInformation.NetworkInterface]::GetAllNetworkInterfaces()) {
+        if ($adapter.OperationalStatus -ne $upStatus) {
+            continue
+        }
+        if ($adapter.NetworkInterfaceType -eq $loopbackType -or $adapter.NetworkInterfaceType -eq $tunnelType) {
+            continue
+        }
+
+        try {
+            $total += [int64]$adapter.GetIPv4Statistics().BytesReceived
+        } catch {
+            continue
+        }
+    }
+
+    return $total
+}
+
+function Format-NetworkSpeed {
+    param(
+        [double]$BytesPerSecond
+    )
+
+    if ($BytesPerSecond -lt 1024) {
+        return ("{0:N0} B/s" -f [Math]::Max(0, $BytesPerSecond))
+    }
+    if ($BytesPerSecond -lt 1MB) {
+        return ("{0:N1} KB/s" -f ($BytesPerSecond / 1KB))
+    }
+    return ("{0:N2} MB/s" -f ($BytesPerSecond / 1MB))
+}
+
+function Invoke-NativeWithTelemetryOrThrow {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$FilePath,
+
+        [Parameter(Mandatory = $true)]
+        [string]$State,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Message,
+
+        [double]$Progress = -1,
+
+        [Parameter(ValueFromRemainingArguments = $true)]
+        [string[]]$ArgumentList
+    )
+
+    $stdoutPath = [System.IO.Path]::GetTempFileName()
+    $stderrPath = [System.IO.Path]::GetTempFileName()
+
+    try {
+        $process = Start-Process `
+            -FilePath $FilePath `
+            -ArgumentList $ArgumentList `
+            -PassThru `
+            -NoNewWindow `
+            -RedirectStandardOutput $stdoutPath `
+            -RedirectStandardError $stderrPath
+
+        $lastBytes = Get-NetworkBytesReceived
+        $lastSampleAt = Get-Date
+
+        while (-not $process.HasExited) {
+            Start-Sleep -Seconds 1
+            $process.Refresh()
+            $currentBytes = Get-NetworkBytesReceived
+            $currentSampleAt = Get-Date
+            $elapsedSeconds = [Math]::Max(0.25, ($currentSampleAt - $lastSampleAt).TotalSeconds)
+            $speedText = Format-NetworkSpeed (($currentBytes - $lastBytes) / $elapsedSeconds)
+            Write-Output (Emit-Json -State $State -Message $Message -Progress $Progress -NetworkSpeed $speedText)
+            $lastBytes = $currentBytes
+            $lastSampleAt = $currentSampleAt
+        }
+
+        $process.WaitForExit()
+        if ($process.ExitCode -ne 0) {
+            $stderr = if (Test-Path $stderrPath) { (Get-Content -LiteralPath $stderrPath -Raw).Trim() } else { "" }
+            $stdout = if (Test-Path $stdoutPath) { (Get-Content -LiteralPath $stdoutPath -Raw).Trim() } else { "" }
+            $details = @($stderr, $stdout) | Where-Object { $_ } | Select-Object -First 1
+            if (-not $details) {
+                $details = "No process output captured."
+            }
+            throw "Command failed with exit code $($process.ExitCode): $FilePath $($ArgumentList -join ' ')`n$details"
+        }
+    } finally {
+        foreach ($tempPath in @($stdoutPath, $stderrPath)) {
+            if ($tempPath -and (Test-Path $tempPath)) {
+                Remove-Item -LiteralPath $tempPath -Force
+            }
+        }
     }
 }
 
@@ -130,16 +236,16 @@ if (-not (Test-Path $pythonExe)) {
 }
 
 Write-Output (Emit-Json -State "installing" -Message "Installing pip..." -Progress 50)
-Invoke-NativeOrThrow $pythonExe $getPipPath "--no-warn-script-location"
+Invoke-NativeWithTelemetryOrThrow $pythonExe "installing" "Installing pip..." 50 $getPipPath "--no-warn-script-location"
 
 Write-Output (Emit-Json -State "installing" -Message "Installing base packaging tools..." -Progress 58)
-Invoke-NativeOrThrow $pythonExe "-m" "pip" "install" "--upgrade" "pip" "setuptools" "wheel" "--no-warn-script-location"
+Invoke-NativeWithTelemetryOrThrow $pythonExe "installing" "Installing base packaging tools..." 58 "-m" "pip" "install" "--upgrade" "pip" "setuptools" "wheel" "--no-warn-script-location"
 
 Write-Output (Emit-Json -State "installing" -Message "Installing PyTorch runtime ($torchLabel)..." -Progress 68)
-Invoke-NativeOrThrow $pythonExe "-m" "pip" "install" "--no-warn-script-location" "torch==$torchVersion" "torchaudio==$torchVersion" "--index-url" $torchIndex
+Invoke-NativeWithTelemetryOrThrow $pythonExe "installing" "Installing PyTorch runtime ($torchLabel)..." 68 "-m" "pip" "install" "--no-warn-script-location" "torch==$torchVersion" "torchaudio==$torchVersion" "--index-url" $torchIndex
 
 Write-Output (Emit-Json -State "installing" -Message "Installing voice dependencies..." -Progress 82)
-Invoke-NativeOrThrow $pythonExe "-m" "pip" "install" "--no-warn-script-location" `
+Invoke-NativeWithTelemetryOrThrow $pythonExe "installing" "Installing voice dependencies..." 82 "-m" "pip" "install" "--no-warn-script-location" `
     "transformers" "accelerate" "numpy" "soundfile" "pydub" "huggingface_hub" "sentencepiece" `
     "einops" "inflect" "addict" "wetext" "modelscope" "datasets" "pydantic" "tqdm" "simplejson" `
     "sortedcontainers" "librosa" "matplotlib" "funasr" "argbind" "safetensors" "fsspec<=2025.3.0"

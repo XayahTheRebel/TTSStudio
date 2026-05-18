@@ -697,6 +697,22 @@ audio {
   line-height: 1.5;
 }
 
+.runtime-speed-copy {
+  min-height: 40px;
+  margin-top: 10px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: var(--panel-soft);
+  color: var(--muted);
+  font-weight: 700;
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+}
+
+.runtime-speed-copy[data-active="true"] {
+  color: #243510;
+}
+
 .voice-preview {
   width: 100%;
   margin: 0 0 14px;
