@@ -7,6 +7,7 @@ const { PythonShell } = require("python-shell");
 const ROOT_DIR = path.resolve(__dirname, "..");
 const RENDERER_DIR = path.join(ROOT_DIR, "renderer");
 const MODEL_REPO_ID = "openbmb/VoxCPM2";
+const MODEL_DOWNLOAD_ENDPOINTS = ["https://hf-mirror.com", "https://huggingface.co"];
 const CONDA_PY311 = path.join(
   process.env.USERPROFILE || "C:\\Users\\24509",
   "anaconda3",
@@ -597,6 +598,7 @@ class OmniVoiceService {
   getModelStatus() {
     return {
       repoId: MODEL_REPO_ID,
+      downloadEndpoints: MODEL_DOWNLOAD_ENDPOINTS,
       modelDir: this.settings.modelDir,
       sourceDir: this.settings.sourceDir,
       exists: isModelDirectoryReady(this.settings.modelDir),
@@ -777,7 +779,14 @@ class OmniVoiceService {
 
     const pythonPath = resolvePythonPath(this.settings.pythonPath);
     const scriptPath = path.join(getBackendDir(), "download_model.py");
-    const args = [scriptPath, "--repo-id", MODEL_REPO_ID, "--local-dir", this.settings.modelDir];
+    const args = [
+      scriptPath,
+      "--repo-id",
+      MODEL_REPO_ID,
+      "--local-dir",
+      this.settings.modelDir,
+      ...MODEL_DOWNLOAD_ENDPOINTS.flatMap((endpoint) => ["--endpoint", endpoint])
+    ];
 
     this.pushEvent("model-download", {
       state: "preparing",
