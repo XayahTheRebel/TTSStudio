@@ -167,9 +167,12 @@ function collectRefs() {
     "runtimeSetupModal",
     "runtimeSetupMessage",
     "runtimeSetupHint",
+    "runtimeInstallCuda121Btn",
+    "runtimeInstallCuda124Btn",
     "runtimeInstallCuda126Btn",
     "runtimeInstallCudaBtn",
     "runtimeInstallCuda129Btn",
+    "runtimeInstallCuda130Btn",
     "runtimeInstallCpuBtn",
     "runtimeSetupProgress",
     "deleteVoiceModal",
@@ -260,9 +263,12 @@ function setRuntimeSetupVisible(visible) {
 
 function getRuntimeTargetButtons() {
   return [
+    { target: "cuda121", label: "CUDA 12.1", button: refs.runtimeInstallCuda121Btn },
+    { target: "cuda124", label: "CUDA 12.4", button: refs.runtimeInstallCuda124Btn },
     { target: "cuda126", label: "CUDA 12.6", button: refs.runtimeInstallCuda126Btn },
     { target: "cuda128", label: "CUDA 12.8", button: refs.runtimeInstallCudaBtn },
     { target: "cuda129", label: "CUDA 12.9", button: refs.runtimeInstallCuda129Btn },
+    { target: "cuda130", label: "CUDA 13.0", button: refs.runtimeInstallCuda130Btn },
     { target: "cpu", label: "CPU", button: refs.runtimeInstallCpuBtn }
   ].filter((item) => item.button);
 }
@@ -1577,9 +1583,12 @@ async function bootstrap() {
     refs.audioSpeedValue.textContent = formatSpeedValue(refs.audioSpeedInput.value);
     refs.resultAudio.playbackRate = getAudioPlaybackRate(refs.audioSpeedInput.value);
   });
+  refs.runtimeInstallCuda121Btn.addEventListener("click", () => installBackendRuntime("cuda121"));
+  refs.runtimeInstallCuda124Btn.addEventListener("click", () => installBackendRuntime("cuda124"));
   refs.runtimeInstallCuda126Btn.addEventListener("click", () => installBackendRuntime("cuda126"));
   refs.runtimeInstallCudaBtn.addEventListener("click", () => installBackendRuntime("cuda128"));
   refs.runtimeInstallCuda129Btn.addEventListener("click", () => installBackendRuntime("cuda129"));
+  refs.runtimeInstallCuda130Btn.addEventListener("click", () => installBackendRuntime("cuda130"));
   refs.runtimeInstallCpuBtn.addEventListener("click", () => installBackendRuntime("cpu"));
   refs.voiceNameInput.addEventListener("input", syncVoiceConfirmState);
   refs.voiceCancelBtn.addEventListener("click", async () => {

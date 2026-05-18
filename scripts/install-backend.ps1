@@ -1,5 +1,5 @@
 param(
-    [ValidateSet("cuda", "cuda126", "cuda128", "cuda129", "cpu")]
+    [ValidateSet("cuda", "cuda121", "cuda124", "cuda126", "cuda128", "cuda129", "cuda130", "cpu")]
     [string]$TorchTarget = "cuda128"
 )
 
@@ -27,16 +27,29 @@ else {
 $normalizedTorchTarget = if ($TorchTarget -eq "cuda") { "cuda128" } else { $TorchTarget }
 $torchIndexMap = @{
     cpu = "https://download.pytorch.org/whl/cpu"
+    cuda121 = "https://download.pytorch.org/whl/cu121"
+    cuda124 = "https://download.pytorch.org/whl/cu124"
     cuda126 = "https://download.pytorch.org/whl/cu126"
     cuda128 = "https://download.pytorch.org/whl/cu128"
     cuda129 = "https://download.pytorch.org/whl/cu129"
+    cuda130 = "https://download.pytorch.org/whl/cu130"
+}
+$torchVersionMap = @{
+    cpu = "2.8.0"
+    cuda121 = "2.5.1"
+    cuda124 = "2.6.0"
+    cuda126 = "2.8.0"
+    cuda128 = "2.8.0"
+    cuda129 = "2.8.0"
+    cuda130 = "2.11.0"
 }
 $torchIndex = $torchIndexMap[$normalizedTorchTarget]
+$torchVersion = $torchVersionMap[$normalizedTorchTarget]
 if (-not $torchIndex) {
     throw "Unsupported TorchTarget: $TorchTarget"
 }
 
-& $python -m pip install torch==2.8.0 torchaudio==2.8.0 --index-url $torchIndex
+& $python -m pip install "torch==$torchVersion" "torchaudio==$torchVersion" --index-url $torchIndex
 
 & $python -m pip install transformers accelerate numpy soundfile pydub huggingface_hub sentencepiece
 & $python -m pip install einops inflect addict wetext modelscope datasets pydantic tqdm simplejson sortedcontainers librosa matplotlib funasr argbind safetensors

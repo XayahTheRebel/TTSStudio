@@ -2,7 +2,7 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$TargetDir,
 
-    [ValidateSet("cpu", "cuda", "cuda126", "cuda128", "cuda129")]
+    [ValidateSet("cpu", "cuda", "cuda121", "cuda124", "cuda126", "cuda128", "cuda129", "cuda130")]
     [string]$TorchTarget = "cpu"
 )
 
@@ -53,18 +53,34 @@ $getPipPath = Join-Path $tempDir "get-pip.py"
 $normalizedTorchTarget = if ($TorchTarget -eq "cuda") { "cuda128" } else { $TorchTarget }
 $torchIndexMap = @{
     cpu = "https://download.pytorch.org/whl/cpu"
+    cuda121 = "https://download.pytorch.org/whl/cu121"
+    cuda124 = "https://download.pytorch.org/whl/cu124"
     cuda126 = "https://download.pytorch.org/whl/cu126"
     cuda128 = "https://download.pytorch.org/whl/cu128"
     cuda129 = "https://download.pytorch.org/whl/cu129"
+    cuda130 = "https://download.pytorch.org/whl/cu130"
 }
 $torchLabelMap = @{
     cpu = "CPU"
+    cuda121 = "CUDA 12.1"
+    cuda124 = "CUDA 12.4"
     cuda126 = "CUDA 12.6"
     cuda128 = "CUDA 12.8"
     cuda129 = "CUDA 12.9"
+    cuda130 = "CUDA 13.0"
+}
+$torchVersionMap = @{
+    cpu = "2.8.0"
+    cuda121 = "2.5.1"
+    cuda124 = "2.6.0"
+    cuda126 = "2.8.0"
+    cuda128 = "2.8.0"
+    cuda129 = "2.8.0"
+    cuda130 = "2.11.0"
 }
 $torchIndex = $torchIndexMap[$normalizedTorchTarget]
 $torchLabel = $torchLabelMap[$normalizedTorchTarget]
+$torchVersion = $torchVersionMap[$normalizedTorchTarget]
 if (-not $torchIndex) {
     throw "Unsupported TorchTarget: $TorchTarget"
 }
@@ -120,7 +136,7 @@ Write-Output (Emit-Json -State "installing" -Message "Installing base packaging 
 Invoke-NativeOrThrow $pythonExe "-m" "pip" "install" "--upgrade" "pip" "setuptools" "wheel" "--no-warn-script-location"
 
 Write-Output (Emit-Json -State "installing" -Message "Installing PyTorch runtime ($torchLabel)..." -Progress 68)
-Invoke-NativeOrThrow $pythonExe "-m" "pip" "install" "--no-warn-script-location" "torch==2.8.0" "torchaudio==2.8.0" "--index-url" $torchIndex
+Invoke-NativeOrThrow $pythonExe "-m" "pip" "install" "--no-warn-script-location" "torch==$torchVersion" "torchaudio==$torchVersion" "--index-url" $torchIndex
 
 Write-Output (Emit-Json -State "installing" -Message "Installing voice dependencies..." -Progress 82)
 Invoke-NativeOrThrow $pythonExe "-m" "pip" "install" "--no-warn-script-location" `
@@ -132,6 +148,7 @@ $runtimeMeta = @{
     installedAt = (Get-Date).ToString("o")
     torchTarget = $normalizedTorchTarget
     torchLabel = $torchLabel
+    torchVersion = $torchVersion
     torchIndex = $torchIndex
     pythonVersion = $pythonVersion
 }

@@ -11,19 +11,45 @@ const MODEL_DOWNLOAD_ENDPOINTS = ["https://hf-mirror.com", "https://huggingface.
 const RUNTIME_TARGETS = {
   cpu: {
     label: "CPU",
+    torchVersion: "2.8.0",
+    torchaudioVersion: "2.8.0",
     torchIndex: "https://download.pytorch.org/whl/cpu"
+  },
+  cuda121: {
+    label: "CUDA 12.1",
+    torchVersion: "2.5.1",
+    torchaudioVersion: "2.5.1",
+    torchIndex: "https://download.pytorch.org/whl/cu121"
+  },
+  cuda124: {
+    label: "CUDA 12.4",
+    torchVersion: "2.6.0",
+    torchaudioVersion: "2.6.0",
+    torchIndex: "https://download.pytorch.org/whl/cu124"
   },
   cuda126: {
     label: "CUDA 12.6",
+    torchVersion: "2.8.0",
+    torchaudioVersion: "2.8.0",
     torchIndex: "https://download.pytorch.org/whl/cu126"
   },
   cuda128: {
     label: "CUDA 12.8",
+    torchVersion: "2.8.0",
+    torchaudioVersion: "2.8.0",
     torchIndex: "https://download.pytorch.org/whl/cu128"
   },
   cuda129: {
     label: "CUDA 12.9",
+    torchVersion: "2.8.0",
+    torchaudioVersion: "2.8.0",
     torchIndex: "https://download.pytorch.org/whl/cu129"
+  },
+  cuda130: {
+    label: "CUDA 13.0",
+    torchVersion: "2.11.0",
+    torchaudioVersion: "2.11.0",
+    torchIndex: "https://download.pytorch.org/whl/cu130"
   }
 };
 const CONDA_PY311 = path.join(
@@ -476,6 +502,9 @@ function normalizeRuntimeTarget(target) {
 function chooseCudaRuntimeTarget(cudaVersionText) {
   const cudaVersion = Number.parseFloat(cudaVersionText || "");
   if (Number.isFinite(cudaVersion)) {
+    if (cudaVersion >= 13.0) {
+      return "cuda130";
+    }
     if (cudaVersion >= 12.9) {
       return "cuda129";
     }
@@ -485,8 +514,14 @@ function chooseCudaRuntimeTarget(cudaVersionText) {
     if (cudaVersion >= 12.6) {
       return "cuda126";
     }
+    if (cudaVersion >= 12.4) {
+      return "cuda124";
+    }
+    if (cudaVersion >= 12.1) {
+      return "cuda121";
+    }
   }
-  return "cuda128";
+  return "cpu";
 }
 
 async function detectNvidiaSmiInfo() {
