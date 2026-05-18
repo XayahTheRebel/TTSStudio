@@ -493,9 +493,6 @@ async function detectRuntimeRecommendation() {
 }
 
 function normalizeRuntimeTarget(target) {
-  if (target === "cuda") {
-    return "cuda128";
-  }
   return RUNTIME_TARGETS[target] ? target : "";
 }
 
@@ -759,7 +756,14 @@ class OmniVoiceService {
       };
     }
 
-    const normalizedTarget = normalizeRuntimeTarget(target);
+    let normalizedTarget = normalizeRuntimeTarget(target);
+    if (target === "cuda") {
+      const recommendation = await detectRuntimeRecommendation();
+      normalizedTarget = normalizeRuntimeTarget(recommendation?.recommendedTarget || "");
+      if (!normalizedTarget || normalizedTarget === "cpu") {
+        normalizedTarget = "cuda128";
+      }
+    }
     if (!normalizedTarget) {
       throw new Error("Unsupported runtime target.");
     }
