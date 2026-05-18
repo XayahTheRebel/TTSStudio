@@ -29,6 +29,7 @@
   "build": {
     "appId": "com.lipex.tts",
     "productName": "Lipex-TTS",
+    "afterPack": "./scripts/after-pack-win-icon.cjs",
     "icon": "icon.png",
     "directories": {
       "output": "release"
@@ -75,6 +76,7 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
+      "uninstallerIcon": "build/uninstallerIcon.ico",
       "artifactName": "${productName} Setup ${version}.${ext}"
     }
   }
