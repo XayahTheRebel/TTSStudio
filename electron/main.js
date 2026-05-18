@@ -42,9 +42,13 @@ function getBundledPythonPath() {
   return path.join(getRuntimeRootDir(), "python", "python.exe");
 }
 
+function getInstallDir() {
+  return isPackagedApp() ? path.dirname(process.execPath) : ROOT_DIR;
+}
+
 function getDefaultModelDir() {
   return isPackagedApp()
-    ? path.join(app.getPath("userData"), "models", "VoxCPM2-HF")
+    ? path.join(getInstallDir(), "models", "VoxCPM2-HF")
     : path.join(ROOT_DIR, "models", "VoxCPM2-HF");
 }
 
@@ -101,6 +105,22 @@ function ensureDir(dirPath) {
   fs.mkdirSync(dirPath, { recursive: true });
 }
 
+function normalizePathForCompare(targetPath) {
+  const resolved = path.resolve(targetPath);
+  return process.platform === "win32" ? resolved.toLowerCase() : resolved;
+}
+
+function isSameOrInsidePath(targetPath, parentPath) {
+  if (!targetPath || !parentPath) {
+    return false;
+  }
+
+  const target = normalizePathForCompare(targetPath);
+  const parent = normalizePathForCompare(parentPath);
+  const relative = path.relative(parent, target);
+  return relative === "" || (relative && !relative.startsWith("..") && !path.isAbsolute(relative));
+}
+
 function isRuntimeReady() {
   return fs.existsSync(getBundledPythonPath()) && fs.existsSync(getRuntimeMetaPath());
 }
@@ -148,7 +168,12 @@ function migrateSettings(rawSettings) {
   }
 
   if (isPackagedApp()) {
-    if (!next.modelDir || next.modelDir.startsWith(ROOT_DIR)) {
+    const legacyUserDataModelDir = path.join(app.getPath("userData"), "models");
+    if (
+      !next.modelDir ||
+      isSameOrInsidePath(next.modelDir, ROOT_DIR) ||
+      isSameOrInsidePath(next.modelDir, legacyUserDataModelDir)
+    ) {
       next.modelDir = defaults.modelDir;
       changed = true;
     }
