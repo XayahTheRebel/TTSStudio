@@ -29,6 +29,7 @@
   "build": {
     "appId": "com.lipex.tts",
     "productName": "Lipex-TTS",
+    "icon": "icon.png",
     "directories": {
       "output": "release"
     },
@@ -36,6 +37,7 @@
     "files": [
       "electron/**/*",
       "renderer/**/*",
+      "icon.png",
       "package.json",
       "README.md",
       "node_modules/**/*",
