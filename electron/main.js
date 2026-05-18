@@ -1033,7 +1033,7 @@ function createWindow() {
     minWidth: 1180,
     minHeight: 760,
     backgroundColor: "#0b0f17",
-    title: "VoxCPM Studio",
+    title: "Lipex-TTS",
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,

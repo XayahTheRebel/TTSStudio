@@ -1,7 +1,7 @@
 {
-  "name": "voxcpm-studio",
+  "name": "lipex-tts",
   "version": "0.1.0",
-  "description": "Electron desktop app for VoxCPM2 local inference via Node.js and Python Shell.",
+  "description": "Lipex-TTS desktop app for local VoxCPM2 inference via Node.js and Python Shell.",
   "main": "electron/main.js",
   "scripts": {
     "start": "electron .",
@@ -27,8 +27,8 @@
     "electron-builder": "^26.0.12"
   },
   "build": {
-    "appId": "com.voxcpm.studio",
-    "productName": "VoxCPM TTS Studio",
+    "appId": "com.lipex.tts",
+    "productName": "Lipex-TTS",
     "directories": {
       "output": "release"
     },
