@@ -1,101 +1,118 @@
-<p align="center">
-  <img src="icon.png" alt="VoxCPM Studio logo" width="128" />
-</p>
+# Lipex-TTS
 
-# VoxCPM Studio
+一个基于 **Electron + Node.js + Python Worker** 的本地桌面 TTS 应用，调用本地 `OpenBMB/VoxCPM2` 模型完成文本转语音、音色设计与声音克隆。
 
-[English](README.en.md) | 简体中文 | [日本語](README.ja.md)
+---
 
-`VoxCPM Studio` 是一个本地桌面 TTS 应用，使用 `Electron + Node.js + python-shell + Python worker` 调用本地 `VoxCPM2` 模型。
+## 功能特性
 
-当前项目已经从 OmniVoice 切换到 `OpenBMB/VoxCPM`，默认使用以下本地资源：
+- **Auto 模式**：直接输入文本与语言，快速生成语音
+- **Design 模式**：用自然语言描述音色（如 "A young woman, gentle and sweet voice, British accent"）
+- **Clone 模式**：上传参考音频进行声音克隆，支持带/不带参考文本两种路径
+- **本地推理**：所有模型与数据均在本地运行，无需联网即可生成
+- **GPU 加速**：支持 NVIDIA CUDA，自动根据硬件选择推理设备
 
-- 源码目录：`models/VoxCPM/src`
-- 模型目录：`models/VoxCPM2-HF`
-- 输出目录：`outputs`
+---
 
-## 当前状态
+## 系统要求
 
-- `Auto` 模式：已实测可用
-- `Design` 模式：前后端已接通，UI 已支持
-- `Clone` 模式：前后端已接入，但本地烟雾测试还没有稳定跑通，需要继续验证
-- 桌面应用：可启动，可加载本地模型，可生成并保存音频
-- 生成的音频会自动保存到 `outputs` 目录
-- 音频生成过程中界面会实时显示进度条
-- 界面语言可在中文、English、日本語之间切换（设备信息右侧的“语言”面板）
+- Windows 10/11（x64）
+- [Node.js](https://nodejs.org/)（推荐 LTS）
+- Python 3.11（推荐通过 Anaconda 创建 `tts-backend-py311` 环境）
+- 可选：NVIDIA GPU + CUDA（用于 GPU 加速）
 
-如果你只是想快速跑起来，先测 `Auto` 模式最稳。
-
-## 平台支持
-
-应用同时支持 **Windows** 和 **macOS**：
-
-- **Windows**：CUDA（NVIDIA 显卡）或 CPU
-- **macOS**：Apple Silicon 自动使用 **MPS** 加速，Intel Mac 回退到 CPU
-
-设备选择是自动的：`cuda → mps → cpu`。
+---
 
 ## 项目结构
 
-- `electron/`
-  - `main.js`：Electron 主进程、Python worker 生命周期、IPC
-  - `preload.js`：向渲染层暴露 `studioApi`
-- `renderer/`
-  - `index.html`：桌面界面
-  - `app.js`：页面逻辑、表单状态、调用 `studioApi`
-  - `styles.css`：样式
-- `backend/`
-  - `worker.py`：常驻 Python 推理进程，和 Node 通过 JSON 协议通信
-- `scripts/`
-  - `install-backend.ps1`：安装后端 Python 依赖
-  - `start-app.ps1`：安装 Node 依赖并启动应用
-- `models/`
-  - `VoxCPM/`：官方源码仓库
-  - `VoxCPM2-HF/`：本地 Hugging Face 模型权重
-- `outputs/`
-  - 生成后的音频输出目录
+```
+TTSStudio/
+├── electron/                 # Electron 主进程
+│   ├── main.js               # 窗口、IPC、Python worker 生命周期
+│   └── preload.js            # 渲染进程 API 桥接
+├── renderer/                 # 前端界面
+│   ├── index.html
+│   ├── app.js
+│   └── styles.css
+├── backend/                  # Python 后端
+│   ├── worker.py             # 常驻推理进程（JSON 行协议通信）
+│   ├── download_model.py     # 模型下载脚本
+│   └── install_runtime.ps1   # 运行时安装脚本
+├── scripts/                  # 构建与安装脚本
+│   ├── install-backend.ps1
+│   ├── start-app.ps1
+│   └── after-pack-win-icon.cjs
+├── models/                   # 本地模型目录（不提交到 Git）
+│   ├── VoxCPM/               # VoxCPM 官方源码
+│   └── VoxCPM2-HF/           # VoxCPM2 本地模型权重
+├── outputs/                  # 生成音频输出目录
+├── build/                    # 构建资源（卸载图标等）
+├── release/                  # electron-builder 输出目录
+├── package.json
+└── README.md
+```
 
-## 环境约定
-
-应用按下面顺序解析 Python 解释器：
-
-1. 应用设置里保存的 `pythonPath`
-2. 项目虚拟环境：`.venv/Scripts/python.exe`（Windows）或 `.venv/bin/python3`（macOS/Linux）
-3. 名为 `tts-backend-py311` 的 conda 环境（如果存在）
-4. 系统 `python`（Windows）或 `python3`（macOS/Linux）
-
-当前 Electron 主进程里的默认路径配置在 [electron/main.js](electron/main.js)。
+---
 
 ## 安装
 
-先安装 Node 依赖：
+### 1. 克隆仓库
 
-```bash
+```powershell
+git clone <your-repo-url>
+cd TTSStudio
+```
+
+### 2. 安装 Node 依赖
+
+```powershell
 npm install
 ```
 
-### 后端依赖 — Windows
+### 3. 安装后端 Python 依赖
+
+推荐使用项目自带的安装脚本，它会自动创建或复用 `tts-backend-py311` conda 环境：
 
 ```powershell
 powershell.exe -ExecutionPolicy Bypass -File .\scripts\install-backend.ps1
 ```
 
-如果你希望只装 CPU 版 Torch：
+如果需要仅安装 CPU 版本 PyTorch：
 
 ```powershell
 powershell.exe -ExecutionPolicy Bypass -File .\scripts\install-backend.ps1 -TorchTarget cpu
 ```
 
-### 后端依赖 — macOS
+支持的 CUDA 目标：`cuda121`、`cuda124`、`cuda126`、`cuda128`、`cuda129`、`cuda130`。
 
-```bash
-pip3 install voxcpm modelscope funasr datasets simplejson sortedcontainers
+### 4. 准备模型
+
+将 `VoxCPM2` 模型权重放到：
+
+```text
+models/VoxCPM2-HF/
 ```
 
-然后检查环境：
+目录中应至少包含：
 
-```bash
-python3 backend/worker.py --doctor
+```text
+models/VoxCPM2-HF/
+├── config.json
+├── model.safetensors
+├── audiovae.pth
+├── tokenizer.json
+├── tokenizer_config.json
+└── ...
+```
+
+如未下载模型，可在应用内通过 Hugging Face 镜像或官方源下载。
+
+---
+
+## 启动
+
+```powershell
+npm start
 ```
 
 输出里 `allCoreDepsReady: true` 表示后端就绪。
@@ -120,75 +137,144 @@ Windows 上也可以：
 powershell.exe -ExecutionPolicy Bypass -File .\scripts\start-app.ps1
 ```
 
-## 使用顺序
+---
 
-首次打开应用后，建议按这个顺序测试：
+## 首次使用流程
 
-1. 点击“检查环境”
-2. 点击“加载模型”
-3. 等待状态变成“模型已就绪”
-4. 先使用 `Auto` 模式生成一条音频
+1. 打开应用后，先点击 **检查环境**
+2. 确认 Python 路径指向 `tts-backend-py311`（或你配置的环境）
+3. 点击 **加载模型**，等待状态变为「模型已就绪」
+4. 切换到 **Auto** 模式，输入文本并选择语言
+5. 点击 **生成**，等待音频生成完成
 
-推荐的首测文本：
+推荐首测文本：
 
 ```text
-Hello world from VoxCPM Studio.
+Hello world from Lipex-TTS.
 ```
+
+---
 
 ## 模式说明
 
-### Auto
+### Auto 模式
 
-最直接的文本转语音模式，只需要填文本和语言。
+最基础的文本转语音模式，只需输入：
 
-### Design
+- 文本内容
+- 目标语言
 
-通过自然语言描述音色，例如：
+### Design 模式
+
+通过自然语言描述目标音色，例如：
 
 ```text
 A young woman, gentle and sweet voice, slightly smiling, British accent
 ```
 
-### Clone
+### Clone 模式
 
 上传参考音频进行声音克隆。
 
-更稳的方式是同时填写参考文本：
+- **带 `ref_text`**：更接近 ultimate cloning，稳定性更好
+- **不带 `ref_text`**：走参考音频驱动的 cloning 路径
 
-- 填了 `ref_text`：更接近 ultimate cloning
-- 不填 `ref_text`：走参考音频驱动的 cloning 路径
+> ⚠️ Clone 模式已前后端接通，但目前稳定性还在验证中，建议优先使用 Auto 模式。
 
-## 可用命令
+---
 
-检查后端环境：
+## 后端环境检查
 
-```bash
-python3 backend/worker.py --doctor
+命令行方式检查后端依赖：
+
+```powershell
+python backend/worker.py --doctor
 ```
+
+如果需要显式使用 conda 环境：
+
+```powershell
+C:\Users\%USERNAME%\anaconda3\envs\tts-backend-py311\python.exe backend/worker.py --doctor
+```
+
+---
+
+## 打包桌面安装程序
+
+```powershell
+# 仅打包目录，不生成安装包
+npm run desktop:pack
+
+# 生成 NSIS 安装包
+npm run desktop:build
+```
+
+打包后的安装程序位于 `release/` 目录。
+
+---
+
+## Python 路径选择逻辑
+
+应用启动 Python worker 时，按以下优先级选择解释器：
+
+1. 用户在应用内设置的 `pythonPath`
+2. 项目根目录下的 `.venv/Scripts/python.exe`
+3. `C:\Users\%USERNAME%\anaconda3\envs\tts-backend-py311\python.exe`
+4. 系统 `python`
+
+推荐始终使用 `tts-backend-py311` conda 环境，以避免依赖冲突。
+
+---
 
 ## 音频格式说明
 
-当前参考音频选择器只开放：
+当前参考音频选择器仅支持：
 
 - `wav`
 - `flac`
 
-这是为了绕开当前环境里对 `mp3` 解码链的不确定性。系统级 `ffmpeg` 目前没有作为这个项目的默认依赖。
+这是为了绕开当前环境中对 `mp3` 解码链的不确定性。系统级 `ffmpeg` 未作为默认依赖。
 
-## 输出行为
+输出音频默认保存为 WAV 格式。
 
-- 每次生成的音频会**自动保存**到 `outputs` 目录，文件名带时间戳
-- 生成按钮下方会实时显示生成进度条；应用初始化时会用一段短样例校准本机推理速度，按“语音单位”（中文字、英文词、数字、停顿分别加权）估算每次生成的真实进度和预计耗时，并在每次生成后自适应修正校准值
-- 结果菜单里的“另存为”仍可把音频额外导出到任意位置
+---
 
 ## 已知问题
 
-- `Clone` 模式还需要继续验证，当前不能宣称完全稳定
-- 项目里还保留了早期 OmniVoice 相关模型目录，它们不是当前主流程的一部分
-- `electron/main.js` 里的服务类名仍叫 `OmniVoiceService`，只是命名遗留，不影响当前运行
+- **Clone 模式**：前后端已接入，但本地烟雾测试尚未完全稳定，需要继续验证
+- **命名遗留**：`electron/main.js` 中的服务类名仍叫 `OmniVoiceService`，不影响当前运行
+- **旧模型目录**：项目中可能仍保留早期 OmniVoice 相关目录，不是当前主流程
 
-## 交接文档
+---
 
-更完整的接力信息、风险和下一步建议见：
+## 开发计划
 
-- [docs/HANDOFF.md](docs/HANDOFF.md)
+### 稳定性优先
+
+- 彻底跑通 Clone 模式
+- 补充固定测试样本
+- 统一错误提示与失败处理
+
+### 体验优先
+
+- 重新设计桌面 UI
+- 参数预设保存
+- 生成历史与结果复播
+- 更完整的生成进度反馈
+
+---
+
+## 技术栈
+
+- [Electron](https://www.electronjs.org/)
+- [Node.js](https://nodejs.org/)
+- [python-shell](https://www.npmjs.com/package/python-shell)
+- [PyTorch](https://pytorch.org/)
+- [Transformers](https://huggingface.co/docs/transformers/)
+- [VoxCPM2](https://huggingface.co/openbmb/VoxCPM2)
+
+---
+
+## License
+
+MIT
