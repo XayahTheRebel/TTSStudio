@@ -4,7 +4,7 @@
 
 # VoxCPM Studio
 
-[English](README.en.md) | 简体中文
+[English](README.en.md) | 简体中文 | [日本語](README.ja.md)
 
 `VoxCPM Studio` 是一个本地桌面 TTS 应用，使用 `Electron + Node.js + python-shell + Python worker` 调用本地 `VoxCPM2` 模型。
 
@@ -22,6 +22,7 @@
 - 桌面应用：可启动，可加载本地模型，可生成并保存音频
 - 生成的音频会自动保存到 `outputs` 目录
 - 音频生成过程中界面会实时显示进度条
+- 界面语言可在中文、English、日本語之间切换（设备信息右侧的“语言”面板）
 
 如果你只是想快速跑起来，先测 `Auto` 模式最稳。
 

@@ -4,7 +4,7 @@
 
 # VoxCPM Studio
 
-English | [简体中文](README.md)
+English | [简体中文](README.md) | [日本語](README.ja.md)
 
 `VoxCPM Studio` is a local desktop TTS application built with `Electron + Node.js + python-shell + a Python worker`, running the local `VoxCPM2` model.
 
@@ -22,6 +22,7 @@ The project has switched from OmniVoice to `OpenBMB/VoxCPM` and uses the followi
 - Desktop app: launches, loads the local model, generates and saves audio
 - Generated audio is saved automatically into the `outputs` directory
 - A progress bar is shown while audio is being generated
+- The UI language can be switched between 中文, English and 日本語 (the "Language" panel next to Device info)
 
 If you just want a quick start, test `Auto` mode first — it is the most stable.
 

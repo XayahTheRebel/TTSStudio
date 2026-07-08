@@ -20,6 +20,422 @@ const state = {
 };
 
 const refs = {};
+
+// ---------------------------------------------------------------------------
+// UI internationalization (zh / en / ja)
+// ---------------------------------------------------------------------------
+const UI_STRINGS = {
+  zh: {
+    "section.device": "设备信息",
+    "section.language": "语言",
+    "section.tts": "文本转语音",
+    "section.emotion": "情绪描述",
+    "section.settings": "更多设置",
+    "section.result": "输出结果",
+    "section.voice": "音色选择",
+    "pill.uninitialized": "未初始化",
+    "pill.deviceUnknown": "设备待检测",
+    "pill.waitingStart": "等待启动",
+    "btn.openOutput": "打开输出目录",
+    "diagnostic.summary": "诊断与日志",
+    "diagnostic.copy": "自动启动失败时，再到这里查看路径、依赖和运行日志。",
+    "label.modelDir": "模型目录",
+    "label.sourceDir": "源码目录",
+    "label.outputDir": "输出目录",
+    "text.detecting": "检测中...",
+    "btn.redetect": "重新检测环境",
+    "btn.reloadModel": "重新加载模型",
+    "btn.clearLog": "清空日志",
+    "placeholder.text": "请输入想要朗读的文本内容",
+    "placeholder.emotion": "描述这段文本的情绪、语气或状态。留空时将使用默认高质量风格描述。",
+    "label.speechSpeed": "语速调节",
+    "label.audioSpeed": "音频速度调节",
+    "btn.generate": "生成音频",
+    "btn.generating": "生成中...",
+    "btn.generatingPct": "生成中 {percent}%",
+    "btn.loading": "加载中...",
+    "btn.downloadingModel": "下载模型...",
+    "btn.downloadingPct": "下载中 {percent}%",
+    "btn.waitingRuntime": "等待安装后端",
+    "btn.installing": "安装中...",
+    "menu.saveAs": "另存为",
+    "state.ready": "模型已就绪",
+    "state.loadingModel": "模型加载中",
+    "state.inferring": "推理中",
+    "state.inferringPct": "推理中 {percent}%",
+    "state.generateFailed": "生成失败",
+    "state.loadFailed": "加载失败",
+    "state.stopped": "已停止",
+    "state.checking": "环境检查中",
+    "state.pendingInit": "待初始化",
+    "state.checkFailed": "检查失败",
+    "state.downloading": "模型下载中",
+    "state.downloadFailed": "模型下载失败",
+    "badge.starting": "启动中",
+    "badge.checking": "检查中",
+    "badge.checkPassed": "检查通过",
+    "badge.needsDiagnosis": "需要诊断",
+    "badge.loading": "加载中",
+    "badge.stopped": "已停止",
+    "badge.downloadFailed": "下载失败",
+    "badge.downloading": "下载中",
+    "badge.downloadingPct": "下载 {percent}%",
+    "voice.auto": "自动音色",
+    "voice.new": "新建音色",
+    "voice.newHint": "上传或录制音频",
+    "voice.sourceRecording": "来源：录音",
+    "voice.sourceUpload": "来源：上传音频",
+    "voice.deleteAria": "删除音色 {name}",
+    "modal.addVoice": "添加音色",
+    "modal.voiceName": "音色名称",
+    "placeholder.voiceName": "例如：我的音色1",
+    "btn.upload": "上传音频",
+    "btn.record": "开始录音",
+    "btn.stopRecord": "停止录音",
+    "btn.clearSource": "清空来源",
+    "modal.voiceStatus": "请选择一段音频（支持 WAV、FLAC、MP3、OGG、M4A），或者录制一段新的音频。",
+    "btn.cancel": "取消",
+    "btn.confirmAdd": "确认添加",
+    "modal.deleteVoice": "删除音色",
+    "modal.deleteVoiceMsg": "确认要删除这个音色吗？删除后不可恢复。",
+    "modal.deleteVoiceMsgNamed": "确认删除音色“{name}”吗？删除后不可恢复。",
+    "btn.confirmDelete": "确认删除",
+    "modal.runtimeTitle": "安装后端环境",
+    "modal.runtimeMessage": "首次启动需要先安装后端运行环境，安装完成后才可以下载模型并生成音频。",
+    "modal.runtimeHint": "正在检测显卡环境并准备推荐安装方案...",
+    "btn.installCuda": "安装 CUDA 版",
+    "btn.installCpu": "安装 CPU 版",
+    "modal.runtimeProgress": "请选择要安装的后端环境。",
+    "voiceStatus.uploaded": "已选择上传音频，确认后会加入音色列表。",
+    "voiceStatus.recording": "正在录音，完成后点击“停止录音”。",
+    "voiceStatus.recordReady": "录音已准备好，确认后会加入音色列表。",
+    "voiceStatus.empty": "没有录到有效音频，请重试。",
+    "voiceStatus.nameRequired": "请先输入音色名称。",
+    "voiceStatus.nameTooLong": "音色名称请控制在 6 个字以内。",
+    "voiceStatus.sourceRequired": "请先上传音频或录制一段音频。",
+    "voiceStatus.recordFailed": "录音失败：{message}",
+    "voiceStatus.processFailed": "录音处理失败：{message}",
+    "voiceStatus.addFailed": "添加失败：{message}",
+    "deleteVoice.failed": "删除失败：{message}",
+    "log.savedTo": "生成完成，已自动保存到：{path}",
+    "log.loadModelFirst": "请先加载模型。",
+    "speed.1": "语速很慢",
+    "speed.2": "语速较慢",
+    "speed.3": "语速中等",
+    "speed.4": "语速较快",
+    "speed.5": "语速很快",
+    "speed.multiplier": "{rate}倍速"
+  },
+  en: {
+    "section.device": "Device",
+    "section.language": "Language",
+    "section.tts": "Text to Speech",
+    "section.emotion": "Emotion & Style",
+    "section.settings": "More Settings",
+    "section.result": "Output",
+    "section.voice": "Voices",
+    "pill.uninitialized": "Not initialized",
+    "pill.deviceUnknown": "Detecting device",
+    "pill.waitingStart": "Waiting to start",
+    "btn.openOutput": "Open output folder",
+    "diagnostic.summary": "Diagnostics & Logs",
+    "diagnostic.copy": "If auto-start fails, check paths, dependencies and runtime logs here.",
+    "label.modelDir": "Model dir",
+    "label.sourceDir": "Source dir",
+    "label.outputDir": "Output dir",
+    "text.detecting": "Detecting...",
+    "btn.redetect": "Re-check environment",
+    "btn.reloadModel": "Reload model",
+    "btn.clearLog": "Clear logs",
+    "placeholder.text": "Enter the text you want to read aloud",
+    "placeholder.emotion": "Describe the emotion, tone or delivery. Leave empty to use the default high-quality style.",
+    "label.speechSpeed": "Speaking pace",
+    "label.audioSpeed": "Playback speed",
+    "btn.generate": "Generate",
+    "btn.generating": "Generating...",
+    "btn.generatingPct": "Generating {percent}%",
+    "btn.loading": "Loading...",
+    "btn.downloadingModel": "Downloading...",
+    "btn.downloadingPct": "Downloading {percent}%",
+    "btn.waitingRuntime": "Waiting for runtime",
+    "btn.installing": "Installing...",
+    "menu.saveAs": "Save as...",
+    "state.ready": "Model ready",
+    "state.loadingModel": "Loading model",
+    "state.inferring": "Generating",
+    "state.inferringPct": "Generating {percent}%",
+    "state.generateFailed": "Generation failed",
+    "state.loadFailed": "Load failed",
+    "state.stopped": "Stopped",
+    "state.checking": "Checking environment",
+    "state.pendingInit": "Awaiting initialization",
+    "state.checkFailed": "Check failed",
+    "state.downloading": "Downloading model",
+    "state.downloadFailed": "Download failed",
+    "badge.starting": "Starting",
+    "badge.checking": "Checking",
+    "badge.checkPassed": "Check passed",
+    "badge.needsDiagnosis": "Needs diagnosis",
+    "badge.loading": "Loading",
+    "badge.stopped": "Stopped",
+    "badge.downloadFailed": "Download failed",
+    "badge.downloading": "Downloading",
+    "badge.downloadingPct": "Downloading {percent}%",
+    "voice.auto": "Auto voice",
+    "voice.new": "New voice",
+    "voice.newHint": "Upload or record audio",
+    "voice.sourceRecording": "Source: recording",
+    "voice.sourceUpload": "Source: uploaded audio",
+    "voice.deleteAria": "Delete voice {name}",
+    "modal.addVoice": "Add Voice",
+    "modal.voiceName": "Voice name",
+    "placeholder.voiceName": "e.g. MyVoice1",
+    "btn.upload": "Upload audio",
+    "btn.record": "Start recording",
+    "btn.stopRecord": "Stop recording",
+    "btn.clearSource": "Clear source",
+    "modal.voiceStatus": "Choose an audio file (WAV, FLAC, MP3, OGG, M4A) or record a new one.",
+    "btn.cancel": "Cancel",
+    "btn.confirmAdd": "Add",
+    "modal.deleteVoice": "Delete Voice",
+    "modal.deleteVoiceMsg": "Delete this voice? This cannot be undone.",
+    "modal.deleteVoiceMsgNamed": "Delete voice “{name}”? This cannot be undone.",
+    "btn.confirmDelete": "Delete",
+    "modal.runtimeTitle": "Install Backend Runtime",
+    "modal.runtimeMessage": "On first launch the backend runtime must be installed before the model can be downloaded and audio generated.",
+    "modal.runtimeHint": "Detecting GPU environment and preparing a recommendation...",
+    "btn.installCuda": "Install CUDA build",
+    "btn.installCpu": "Install CPU build",
+    "modal.runtimeProgress": "Choose which backend runtime to install.",
+    "voiceStatus.uploaded": "Audio selected. Confirm to add it to the voice list.",
+    "voiceStatus.recording": "Recording... click “Stop recording” when done.",
+    "voiceStatus.recordReady": "Recording ready. Confirm to add it to the voice list.",
+    "voiceStatus.empty": "No valid audio captured. Please try again.",
+    "voiceStatus.nameRequired": "Please enter a voice name first.",
+    "voiceStatus.nameTooLong": "Keep the voice name within 6 characters.",
+    "voiceStatus.sourceRequired": "Please upload or record audio first.",
+    "voiceStatus.recordFailed": "Recording failed: {message}",
+    "voiceStatus.processFailed": "Failed to process recording: {message}",
+    "voiceStatus.addFailed": "Failed to add: {message}",
+    "deleteVoice.failed": "Failed to delete: {message}",
+    "log.savedTo": "Done. Saved automatically to: {path}",
+    "log.loadModelFirst": "Please load the model first.",
+    "speed.1": "Very slow",
+    "speed.2": "Slow",
+    "speed.3": "Normal pace",
+    "speed.4": "Fast",
+    "speed.5": "Very fast",
+    "speed.multiplier": "{rate}×"
+  },
+  ja: {
+    "section.device": "デバイス情報",
+    "section.language": "言語",
+    "section.tts": "テキスト読み上げ",
+    "section.emotion": "感情・スタイル",
+    "section.settings": "詳細設定",
+    "section.result": "出力結果",
+    "section.voice": "ボイス選択",
+    "pill.uninitialized": "未初期化",
+    "pill.deviceUnknown": "デバイス検出中",
+    "pill.waitingStart": "起動待ち",
+    "btn.openOutput": "出力フォルダを開く",
+    "diagnostic.summary": "診断とログ",
+    "diagnostic.copy": "自動起動に失敗した場合は、ここでパス・依存関係・ログを確認してください。",
+    "label.modelDir": "モデル",
+    "label.sourceDir": "ソース",
+    "label.outputDir": "出力先",
+    "text.detecting": "検出中...",
+    "btn.redetect": "環境を再チェック",
+    "btn.reloadModel": "モデルを再読み込み",
+    "btn.clearLog": "ログをクリア",
+    "placeholder.text": "読み上げたいテキストを入力してください",
+    "placeholder.emotion": "感情・口調・話し方を記述してください。空欄の場合は既定の高品質スタイルを使用します。",
+    "label.speechSpeed": "話す速さ",
+    "label.audioSpeed": "再生速度",
+    "btn.generate": "音声を生成",
+    "btn.generating": "生成中...",
+    "btn.generatingPct": "生成中 {percent}%",
+    "btn.loading": "読み込み中...",
+    "btn.downloadingModel": "ダウンロード中...",
+    "btn.downloadingPct": "ダウンロード {percent}%",
+    "btn.waitingRuntime": "ランタイム待ち",
+    "btn.installing": "インストール中...",
+    "menu.saveAs": "名前を付けて保存",
+    "state.ready": "モデル準備完了",
+    "state.loadingModel": "モデル読み込み中",
+    "state.inferring": "推論中",
+    "state.inferringPct": "推論中 {percent}%",
+    "state.generateFailed": "生成失敗",
+    "state.loadFailed": "読み込み失敗",
+    "state.stopped": "停止済み",
+    "state.checking": "環境チェック中",
+    "state.pendingInit": "初期化待ち",
+    "state.checkFailed": "チェック失敗",
+    "state.downloading": "モデルダウンロード中",
+    "state.downloadFailed": "ダウンロード失敗",
+    "badge.starting": "起動中",
+    "badge.checking": "チェック中",
+    "badge.checkPassed": "チェック合格",
+    "badge.needsDiagnosis": "要診断",
+    "badge.loading": "読み込み中",
+    "badge.stopped": "停止済み",
+    "badge.downloadFailed": "DL失敗",
+    "badge.downloading": "DL中",
+    "badge.downloadingPct": "DL {percent}%",
+    "voice.auto": "自動ボイス",
+    "voice.new": "新規ボイス",
+    "voice.newHint": "アップロードまたは録音",
+    "voice.sourceRecording": "ソース：録音",
+    "voice.sourceUpload": "ソース：アップロード",
+    "voice.deleteAria": "ボイス {name} を削除",
+    "modal.addVoice": "ボイスを追加",
+    "modal.voiceName": "ボイス名",
+    "placeholder.voiceName": "例：マイボイス1",
+    "btn.upload": "音声をアップロード",
+    "btn.record": "録音開始",
+    "btn.stopRecord": "録音停止",
+    "btn.clearSource": "ソースをクリア",
+    "modal.voiceStatus": "音声ファイル（WAV・FLAC・MP3・OGG・M4A）を選択するか、新しく録音してください。",
+    "btn.cancel": "キャンセル",
+    "btn.confirmAdd": "追加する",
+    "modal.deleteVoice": "ボイスを削除",
+    "modal.deleteVoiceMsg": "このボイスを削除しますか？元に戻せません。",
+    "modal.deleteVoiceMsgNamed": "ボイス「{name}」を削除しますか？元に戻せません。",
+    "btn.confirmDelete": "削除する",
+    "modal.runtimeTitle": "バックエンド環境のインストール",
+    "modal.runtimeMessage": "初回起動時はバックエンド環境をインストールしてから、モデルのダウンロードと音声生成が可能になります。",
+    "modal.runtimeHint": "GPU 環境を検出し、推奨インストール構成を準備しています...",
+    "btn.installCuda": "CUDA 版をインストール",
+    "btn.installCpu": "CPU 版をインストール",
+    "modal.runtimeProgress": "インストールするバックエンド環境を選択してください。",
+    "voiceStatus.uploaded": "音声を選択しました。確認後にボイスリストへ追加されます。",
+    "voiceStatus.recording": "録音中です。終わったら「録音停止」を押してください。",
+    "voiceStatus.recordReady": "録音の準備ができました。確認後にリストへ追加されます。",
+    "voiceStatus.empty": "有効な音声が録れませんでした。もう一度お試しください。",
+    "voiceStatus.nameRequired": "先にボイス名を入力してください。",
+    "voiceStatus.nameTooLong": "ボイス名は6文字以内にしてください。",
+    "voiceStatus.sourceRequired": "先に音声をアップロードまたは録音してください。",
+    "voiceStatus.recordFailed": "録音失敗：{message}",
+    "voiceStatus.processFailed": "録音の処理に失敗：{message}",
+    "voiceStatus.addFailed": "追加失敗：{message}",
+    "deleteVoice.failed": "削除失敗：{message}",
+    "log.savedTo": "生成完了。自動保存先：{path}",
+    "log.loadModelFirst": "先にモデルを読み込んでください。",
+    "speed.1": "とても遅い",
+    "speed.2": "やや遅い",
+    "speed.3": "ふつう",
+    "speed.4": "やや速い",
+    "speed.5": "とても速い",
+    "speed.multiplier": "{rate}倍速"
+  }
+};
+
+const EMOTION_PRESETS_I18N = {
+  zh: [
+    { label: "温柔", text: "温柔、轻缓、亲切，声音柔和细腻，带安抚感和耐心，说话轻轻落下，自然不生硬。" },
+    { label: "开心活泼", text: "轻快、明亮、活泼，声音有笑意和弹性，情绪外放自然，带明显的愉悦感和亲和力。" },
+    { label: "冷静克制", text: "冷静、克制、稳定，声音平稳清晰，起伏收敛，措辞理性，表达有分寸，不过度渲染情绪。" },
+    { label: "伤感", text: "低落、失落、压抑，声音偏轻偏弱，尾音微微下沉，带一点鼻音和隐忍感，像在努力压住情绪。" },
+    { label: "紧张", text: "紧张、谨慎、不安，声音微微发紧，呼吸略急，语句之间带一点停顿和迟疑，像在强撑着保持镇定。" },
+    { label: "惊讶", text: "明显惊讶，声音瞬间抬高，反应直接，语气里带突然被触动的起伏感，但整体仍保持自然真实。" },
+    { label: "严肃", text: "严肃、郑重、认真，声音清晰有力，节奏稳定，表达明确克制，带一点正式感和压迫感。" },
+    { label: "受伤", text: "极度痛苦、虚弱、恐惧、带哭腔，说话断断续续，夹杂明显的受伤喘息和压抑的哭声。" }
+  ],
+  en: [
+    { label: "Gentle", text: "Gentle, soft and warm, a tender soothing voice with patience, landing lightly and naturally, never stiff." },
+    { label: "Cheerful", text: "Light, bright and lively, a voice with a smile and bounce, openly joyful, friendly and engaging." },
+    { label: "Calm", text: "Calm, restrained and steady, a clear even voice with controlled dynamics, rational wording, measured without dramatizing." },
+    { label: "Sad", text: "Low and dejected, a soft weak voice with slightly sinking tail notes and a hint of nasal restraint, as if holding back emotion." },
+    { label: "Nervous", text: "Nervous, cautious and uneasy, a slightly tight voice with quicker breathing, small pauses and hesitations while trying to stay composed." },
+    { label: "Surprised", text: "Clearly surprised, the voice lifts suddenly with direct reactions and a startled rise and fall, yet stays natural and real." },
+    { label: "Serious", text: "Serious, solemn and earnest, a clear firm voice with steady rhythm, precise restrained delivery and a formal edge." },
+    { label: "Hurt", text: "In great pain, weak and fearful with a sobbing tone, speaking in broken phrases mixed with hurt gasps and suppressed crying." }
+  ],
+  ja: [
+    { label: "優しい", text: "優しく、ゆっくりと、親しみを込めて。柔らかく繊細な声で、安心感と忍耐を持って、自然に軽く語りかける。" },
+    { label: "明るい", text: "軽快で明るく、活発。笑いを含んだ弾む声で、素直に喜びが表れ、親しみやすい。" },
+    { label: "冷静", text: "冷静で抑制的、安定した声。起伏を抑え、理性的な言葉遣いで、感情を誇張せず節度を持って表現する。" },
+    { label: "悲しい", text: "沈んで落ち込んだ、弱く小さな声。語尾がわずかに沈み、少し鼻にかかった抑えた響きで、感情をこらえているよう。" },
+    { label: "緊張", text: "緊張して慎重、不安げ。声がわずかにこわばり、呼吸が少し速く、言葉の間に小さな間やためらいがあり、平静を装っている。" },
+    { label: "驚き", text: "明らかな驚き。声が瞬間的に高くなり、率直な反応で、突然心を動かされた起伏を持ちながらも自然で真実味がある。" },
+    { label: "真剣", text: "真剣で厳粛、誠実。はっきりと力強い声、安定したリズム、正確で抑制された表現に、フォーマルな緊張感を添えて。" },
+    { label: "苦痛", text: "極度の苦痛、弱々しく、恐怖と泣き声混じり。途切れ途切れに話し、傷ついた喘ぎと抑えた泣き声が混じる。" }
+  ]
+};
+
+let uiLanguage = (() => {
+  try {
+    const stored = localStorage.getItem("uiLanguage");
+    return UI_STRINGS[stored] ? stored : "zh";
+  } catch {
+    return "zh";
+  }
+})();
+
+function t(key, vars) {
+  const table = UI_STRINGS[uiLanguage] || UI_STRINGS.zh;
+  let text = table[key] ?? UI_STRINGS.zh[key] ?? key;
+  if (vars) {
+    text = text.replace(/\{(\w+)\}/g, (_, name) => (vars[name] !== undefined ? vars[name] : ""));
+  }
+  return text;
+}
+
+function getEmotionPresets() {
+  return EMOTION_PRESETS_I18N[uiLanguage] || EMOTION_PRESETS_I18N.zh;
+}
+
+function applyUiLanguage(lang) {
+  uiLanguage = UI_STRINGS[lang] ? lang : "zh";
+  try {
+    localStorage.setItem("uiLanguage", uiLanguage);
+  } catch {
+    // localStorage may be unavailable; language just won't persist.
+  }
+  document.documentElement.lang = uiLanguage === "zh" ? "zh-CN" : uiLanguage;
+  document.querySelectorAll("[data-i18n]").forEach((node) => {
+    node.textContent = t(node.dataset.i18n);
+  });
+  document.querySelectorAll("[data-i18n-placeholder]").forEach((node) => {
+    node.setAttribute("placeholder", t(node.dataset.i18nPlaceholder));
+  });
+  document.querySelectorAll(".lang-btn").forEach((button) => {
+    button.classList.toggle("lang-btn-active", button.dataset.lang === uiLanguage);
+  });
+
+  // Restore dynamic values that the static pass above just reset.
+  if (state.settings) {
+    setSettingsUI(state.settings);
+  }
+  if (state.modelMeta) {
+    refs.deviceBadge.textContent = `${state.modelMeta.device} / ${state.modelMeta.dtype}`;
+  }
+  if (refs.emotionPresetBar) {
+    renderEmotionPresets();
+  }
+  if (refs.voiceList) {
+    renderVoiceList();
+  }
+  if (refs.speechSpeedValue) {
+    refs.speechSpeedValue.textContent = formatSpeechSpeedValue(refs.speechSpeedInput.value);
+  }
+  if (refs.audioSpeedValue) {
+    refs.audioSpeedValue.textContent = formatSpeedValue(refs.audioSpeedInput.value);
+  }
+  if (state.lastWorkerState) {
+    setWorkerState(state.lastWorkerState.key, state.lastWorkerState.variant, state.lastWorkerState.vars);
+  }
+  if (state.lastStartupBadge) {
+    setStartupState("", "", state.lastStartupBadge.key, state.lastStartupBadge.variant, state.lastStartupBadge.vars);
+  }
+  if (state.lastGenerateBtn) {
+    setGenerateButtonText(state.lastGenerateBtn.key, state.lastGenerateBtn.vars);
+  }
+  if (state.lastInitializeBtn) {
+    setInitializeButtonText(state.lastInitializeBtn.key, state.lastInitializeBtn.vars);
+  }
+}
+
 const LANGUAGE_LABELS = {
   Arabic: "阿拉伯语",
   Burmese: "缅甸语",
@@ -84,23 +500,12 @@ const LANGUAGE_OPTIONS = [
   "Turkish",
   "Vietnamese"
 ];
-const EMOTION_PRESETS = [
-  "温柔",
-  "开心活泼",
-  "冷静克制",
-  "伤感",
-  "紧张",
-  "惊讶",
-  "严肃",
-  "放慢语速"
-];
-
 const SPEECH_SPEED_PRESETS = [
-  { value: "1", label: "语速很慢", prompt: "very slow speaking pace" },
-  { value: "2", label: "语速较慢", prompt: "slightly slow speaking pace" },
-  { value: "3", label: "语速中等", prompt: "moderate speaking pace" },
-  { value: "4", label: "语速较快", prompt: "slightly fast speaking pace" },
-  { value: "5", label: "语速很快", prompt: "very fast speaking pace" }
+  { value: "1", labelKey: "speed.1", prompt: "very slow speaking pace" },
+  { value: "2", labelKey: "speed.2", prompt: "slightly slow speaking pace" },
+  { value: "3", labelKey: "speed.3", prompt: "moderate speaking pace" },
+  { value: "4", labelKey: "speed.4", prompt: "slightly fast speaking pace" },
+  { value: "5", labelKey: "speed.5", prompt: "very fast speaking pace" }
 ];
 
 const DEFAULT_STYLE_DESCRIPTION = [
@@ -110,19 +515,6 @@ const DEFAULT_STYLE_DESCRIPTION = [
 ].join(", ");
 
 const DEFAULT_RUNTIME_SPEED_TEXT = "Network: waiting for download activity...";
-
-EMOTION_PRESETS.splice(
-  0,
-  EMOTION_PRESETS.length,
-  { label: "温柔", text: "温柔、轻缓、亲切，声音柔和细腻，带安抚感和耐心，说话轻轻落下，自然不生硬。" },
-  { label: "开心活泼", text: "轻快、明亮、活泼，声音有笑意和弹性，情绪外放自然，带明显的愉悦感和亲和力。" },
-  { label: "冷静克制", text: "冷静、克制、稳定，声音平稳清晰，起伏收敛，措辞理性，表达有分寸，不过度渲染情绪。" },
-  { label: "伤感", text: "低落、失落、压抑，声音偏轻偏弱，尾音微微下沉，带一点鼻音和隐忍感，像在努力压住情绪。" },
-  { label: "紧张", text: "紧张、谨慎、不安，声音微微发紧，呼吸略急，语句之间带一点停顿和迟疑，像在强撑着保持镇定。" },
-  { label: "惊讶", text: "明显惊讶，声音瞬间抬高，反应直接，语气里带突然被触动的起伏感，但整体仍保持自然真实。" },
-  { label: "严肃", text: "严肃、郑重、认真，声音清晰有力，节奏稳定，表达明确克制，带一点正式感和压迫感。" },
-  { label: "受伤", text: "极度痛苦、虚弱、恐惧、带哭腔，说话断断续续，夹杂明显的受伤喘息和压抑的哭声。" }
-);
 
 function $(id) {
   return document.getElementById(id);
@@ -206,9 +598,20 @@ function addLog(message, level = "info") {
   refs.logConsole.prepend(entry);
 }
 
-function setWorkerState(text, variant = "idle") {
-  refs.workerState.textContent = text;
+function setWorkerState(key, variant = "idle", vars) {
+  state.lastWorkerState = { key, variant, vars };
+  refs.workerState.textContent = t(key, vars);
   refs.workerState.className = `pill pill-${variant}`;
+}
+
+function setGenerateButtonText(key, vars) {
+  state.lastGenerateBtn = { key, vars };
+  refs.generateBtn.textContent = t(key, vars);
+}
+
+function setInitializeButtonText(key, vars) {
+  state.lastInitializeBtn = { key, vars };
+  refs.initializeBtn.textContent = t(key, vars);
 }
 
 function setDiagnosticPanel(visible, open = visible) {
@@ -216,8 +619,9 @@ function setDiagnosticPanel(visible, open = visible) {
   refs.diagnosticPanel.open = visible && open;
 }
 
-function setStartupState(_title, _description, badgeText, variant = "idle") {
-  refs.startupBadge.textContent = badgeText;
+function setStartupState(_title, _description, badgeKey, variant = "idle", vars) {
+  state.lastStartupBadge = { key: badgeKey, variant, vars };
+  refs.startupBadge.textContent = t(badgeKey, vars);
   refs.startupBadge.className = `pill pill-${variant}`;
 }
 
@@ -241,8 +645,8 @@ function handleGenerateProgressEvent(payload = {}) {
   }
   const percent = Math.round(payload.percent);
   showGenerateProgress(percent);
-  refs.generateBtn.textContent = `生成中 ${percent}%`;
-  setWorkerState(`推理中 ${percent}%`, "busy");
+  setGenerateButtonText("btn.generatingPct", { percent });
+  setWorkerState("state.inferringPct", "busy", { percent });
 }
 
 function setRuntimeSpeedText(speedText = "") {
@@ -254,24 +658,32 @@ function setRuntimeSpeedText(speedText = "") {
 function handleModelDownloadEvent(payload = {}) {
   const downloadState = payload.state || "";
   const hasProgress = Number.isFinite(payload.progress);
-  const progressText = hasProgress ? `下载 ${Math.round(payload.progress)}%` : "下载中";
+  const percent = hasProgress ? Math.round(payload.progress) : 0;
 
   if (downloadState === "preparing" || downloadState === "downloading") {
     state.isDownloadingModel = true;
     refs.generateBtn.disabled = true;
-    refs.generateBtn.textContent = "加载中...";
+    setGenerateButtonText("btn.loading");
     setGenerateButtonBusy(true);
     refs.initializeBtn.disabled = true;
-    refs.initializeBtn.textContent = hasProgress ? `下载中 ${Math.round(payload.progress)}%` : "下载模型...";
-    setWorkerState("模型下载中", "busy");
-    setStartupState("正在下载模型", payload.message || "首次启动正在下载 VoxCPM2 模型。", progressText, "busy");
+    if (hasProgress) {
+      setInitializeButtonText("btn.downloadingPct", { percent });
+    } else {
+      setInitializeButtonText("btn.downloadingModel");
+    }
+    setWorkerState("state.downloading", "busy");
+    if (hasProgress) {
+      setStartupState("", "", "badge.downloadingPct", "busy", { percent });
+    } else {
+      setStartupState("", "", "badge.downloading", "busy");
+    }
     return;
   }
 
   if (downloadState === "complete") {
     state.isDownloadingModel = false;
     refs.initializeBtn.disabled = false;
-    refs.initializeBtn.textContent = "重新加载模型";
+    setInitializeButtonText("btn.reloadModel");
     addLog(payload.message || "模型下载完成。", "success");
     return;
   }
@@ -279,12 +691,12 @@ function handleModelDownloadEvent(payload = {}) {
   if (downloadState === "error") {
     state.isDownloadingModel = false;
     refs.initializeBtn.disabled = false;
-    refs.initializeBtn.textContent = "重新加载模型";
+    setInitializeButtonText("btn.reloadModel");
     refs.generateBtn.disabled = true;
-    refs.generateBtn.textContent = "加载中...";
+    setGenerateButtonText("btn.loading");
     setGenerateButtonBusy(true);
-    setWorkerState("模型下载失败", "error");
-    setStartupState("模型下载失败", payload.message || "模型下载失败，请检查网络或 Python 环境。", "下载失败", "error");
+    setWorkerState("state.downloadFailed", "error");
+    setStartupState("", "", "badge.downloadFailed", "error");
     addLog(payload.message || "模型下载失败。", "error");
   }
 }
@@ -346,11 +758,11 @@ async function showRuntimeSetup() {
     "首次启动需要先安装后端运行环境。安装完成后，程序会继续下载模型并自动初始化。";
   refs.runtimeSetupProgress.textContent = "请选择要安装的后端环境。";
   refs.initializeBtn.disabled = true;
-  refs.initializeBtn.textContent = "等待安装后端";
+  setInitializeButtonText("btn.waitingRuntime");
   refs.generateBtn.disabled = true;
-  refs.generateBtn.textContent = "加载中...";
+  setGenerateButtonText("btn.loading");
   setGenerateButtonBusy(true);
-  setWorkerState("等待安装后端", "busy");
+  setWorkerState("btn.waitingRuntime", "busy");
   setStartupState("等待安装后端环境", state.runtimeRecommendation.reason, "待安装", "busy");
   setRuntimeSetupVisible(true);
   return true;
@@ -371,10 +783,10 @@ function handleRuntimeInstallEvent(payload = {}) {
     refs.runtimeInstallCpuBtn.disabled = true;
     setRuntimeInstallButtonsDisabled(true);
     refs.initializeBtn.disabled = true;
-    refs.initializeBtn.textContent = "安装中...";
+    setInitializeButtonText("btn.installing");
     refs.runtimeSetupProgress.textContent = payload.message || "正在安装后端运行环境...";
     refs.generateBtn.disabled = true;
-    refs.generateBtn.textContent = "加载中...";
+    setGenerateButtonText("btn.loading");
     setGenerateButtonBusy(true);
     setWorkerState("安装后端中", "busy");
     setStartupState("正在安装后端环境", payload.message || "正在安装后端运行环境...", progressText, "busy");
@@ -385,7 +797,7 @@ function handleRuntimeInstallEvent(payload = {}) {
     state.isInstallingRuntime = false;
     setRuntimeSpeedText("");
     refs.initializeBtn.disabled = false;
-    refs.initializeBtn.textContent = "重新加载模型";
+    setInitializeButtonText("btn.reloadModel");
     refs.runtimeSetupProgress.textContent = payload.message || "后端运行环境安装完成。";
     addLog(payload.message || "后端运行环境安装完成。", "success");
     return;
@@ -398,7 +810,7 @@ function handleRuntimeInstallEvent(payload = {}) {
     refs.runtimeInstallCpuBtn.disabled = false;
     setRuntimeInstallButtonsDisabled(false);
     refs.initializeBtn.disabled = false;
-    refs.initializeBtn.textContent = "重新加载模型";
+    setInitializeButtonText("btn.reloadModel");
     refs.runtimeSetupProgress.textContent = payload.message || "后端运行环境安装失败，请重试。";
     setWorkerState("安装后端失败", "error");
     setStartupState("后端环境安装失败", payload.message || "后端运行环境安装失败，请检查网络后重试。", "失败", "error");
@@ -464,15 +876,17 @@ function renderVoiceList() {
       renderVoiceList();
     });
 
+    const displayName = voice.id === "auto" ? t("voice.auto") : voice.name;
+    const displayDesc = voice.kind === "custom" ? describeVoice(voice) : "";
     const content = document.createElement("div");
     content.className = "voice-card-content";
-    content.innerHTML = voice.description
+    content.innerHTML = displayDesc
       ? `
-        <strong>${voice.name}</strong>
-        <span>${voice.description}</span>
+        <strong>${displayName}</strong>
+        <span>${displayDesc}</span>
       `
       : `
-        <strong>${voice.name}</strong>
+        <strong>${displayName}</strong>
       `;
     button.appendChild(content);
 
@@ -480,7 +894,7 @@ function renderVoiceList() {
       const deleteButton = document.createElement("button");
       deleteButton.type = "button";
       deleteButton.className = "voice-delete-btn";
-      deleteButton.setAttribute("aria-label", `删除音色 ${voice.name}`);
+      deleteButton.setAttribute("aria-label", t("voice.deleteAria", { name: voice.name }));
       deleteButton.innerHTML = `
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="M9 3h6l1 2h4v2H4V5h4l1-2zm1 6h2v8h-2V9zm4 0h2v8h-2V9zM7 9h2v8H7V9zm1 12c-1.1 0-2-.9-2-2V8h12v11c0 1.1-.9 2-2 2H8z"></path>
@@ -489,7 +903,7 @@ function renderVoiceList() {
       deleteButton.addEventListener("click", (event) => {
         event.stopPropagation();
         state.voicePendingDeleteId = voice.id;
-        refs.deleteVoiceMessage.textContent = `确认删除音色“${voice.name}”吗？删除后不可恢复。`;
+        refs.deleteVoiceMessage.textContent = t("modal.deleteVoiceMsgNamed", { name: voice.name });
         refs.deleteVoiceModal.classList.remove("hidden");
       });
       button.appendChild(deleteButton);
@@ -503,8 +917,8 @@ function renderVoiceList() {
   addButton.className = "voice-card voice-card-placeholder";
   addButton.innerHTML = `
     <div class="voice-card-content">
-      <strong>新建音色</strong>
-      <span>上传或录制音频</span>
+      <strong>${t("voice.new")}</strong>
+      <span>${t("voice.newHint")}</span>
     </div>
     <span class="voice-add-icon" aria-hidden="true">+</span>
   `;
@@ -614,7 +1028,7 @@ async function stopActiveRecording() {
           type: activeRecorder.mimeType || "audio/webm"
         });
         if (!blob.size) {
-          refs.voiceSourceStatus.textContent = "没有录到有效音频，请重试。";
+          refs.voiceSourceStatus.textContent = t("voiceStatus.empty");
           refs.voiceRecordBtn.disabled = false;
           refs.voiceStopBtn.disabled = true;
           resolve();
@@ -630,13 +1044,13 @@ async function stopActiveRecording() {
         state.pendingVoicePreviewUrl = URL.createObjectURL(wavPreviewBlob);
         refs.voicePreviewAudio.src = state.pendingVoicePreviewUrl;
         refs.voicePreviewAudio.load();
-        refs.voiceSourceStatus.textContent = "录音已准备好，确认后会加入音色列表。";
+        refs.voiceSourceStatus.textContent = t("voiceStatus.recordReady");
         refs.voiceRecordBtn.disabled = false;
         refs.voiceStopBtn.disabled = true;
         syncVoiceConfirmState();
         resolve();
       } catch (error) {
-        refs.voiceSourceStatus.textContent = `录音处理失败：${error.message}`;
+        refs.voiceSourceStatus.textContent = t("voiceStatus.processFailed", { message: error.message });
         refs.voiceRecordBtn.disabled = false;
         refs.voiceStopBtn.disabled = true;
         reject(error);
@@ -645,7 +1059,7 @@ async function stopActiveRecording() {
 
     activeRecorder.mediaRecorder.onerror = (event) => {
       activeRecorder.stream.getTracks().forEach((track) => track.stop());
-      refs.voiceSourceStatus.textContent = `录音失败：${event.error?.message || "未知错误"}`;
+      refs.voiceSourceStatus.textContent = t("voiceStatus.recordFailed", { message: event.error?.message || "unknown error" });
       refs.voiceRecordBtn.disabled = false;
       refs.voiceStopBtn.disabled = true;
       reject(event.error || new Error("Recording failed."));
@@ -723,7 +1137,8 @@ function renderEmotionPresets() {
 function formatSpeedValue(value) {
   const rate = getAudioPlaybackRate(value);
   const roundedRate = Math.round(rate * 10) / 10;
-  return Number.isInteger(roundedRate) ? `${roundedRate}倍速` : `${roundedRate.toFixed(1)}倍速`;
+  const rateText = Number.isInteger(roundedRate) ? `${roundedRate}` : roundedRate.toFixed(1);
+  return t("speed.multiplier", { rate: rateText });
 }
 
 function getAudioPlaybackRate(value) {
@@ -815,9 +1230,9 @@ function getDefaultVoice() {
 
 function describeVoice(voice) {
   if (voice.source === "recording") {
-    return "来源：录音";
+    return t("voice.sourceRecording");
   }
-  return "来源：上传音频";
+  return t("voice.sourceUpload");
 }
 
 function renderVoiceList() {
@@ -832,15 +1247,17 @@ function renderVoiceList() {
       renderVoiceList();
     });
 
+    const displayName = voice.id === "auto" ? t("voice.auto") : voice.name;
+    const displayDesc = voice.kind === "custom" ? describeVoice(voice) : "";
     const content = document.createElement("div");
     content.className = "voice-card-content";
-    content.innerHTML = voice.description
+    content.innerHTML = displayDesc
       ? `
-        <strong>${voice.name}</strong>
-        <span>${voice.description}</span>
+        <strong>${displayName}</strong>
+        <span>${displayDesc}</span>
       `
       : `
-        <strong>${voice.name}</strong>
+        <strong>${displayName}</strong>
       `;
     button.appendChild(content);
 
@@ -848,7 +1265,7 @@ function renderVoiceList() {
       const deleteButton = document.createElement("button");
       deleteButton.type = "button";
       deleteButton.className = "voice-delete-btn";
-      deleteButton.setAttribute("aria-label", `删除音色 ${voice.name}`);
+      deleteButton.setAttribute("aria-label", t("voice.deleteAria", { name: voice.name }));
       deleteButton.innerHTML = `
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="M9 3h6l1 2h4v2H4V5h4l1-2zm1 6h2v8h-2V9zm4 0h2v8h-2V9zM7 9h2v8H7V9zm1 12c-1.1 0-2-.9-2-2V8h12v11c0 1.1-.9 2-2 2H8z"></path>
@@ -857,7 +1274,7 @@ function renderVoiceList() {
       deleteButton.addEventListener("click", (event) => {
         event.stopPropagation();
         state.voicePendingDeleteId = voice.id;
-        refs.deleteVoiceMessage.textContent = `确认删除音色“${voice.name}”吗？删除后不可恢复。`;
+        refs.deleteVoiceMessage.textContent = t("modal.deleteVoiceMsgNamed", { name: voice.name });
         refs.deleteVoiceModal.classList.remove("hidden");
       });
       button.appendChild(deleteButton);
@@ -871,8 +1288,8 @@ function renderVoiceList() {
   addButton.className = "voice-card voice-card-placeholder";
   addButton.innerHTML = `
     <div class="voice-card-content">
-      <strong>新建音色</strong>
-      <span>上传或录制音频</span>
+      <strong>${t("voice.new")}</strong>
+      <span>${t("voice.newHint")}</span>
     </div>
     <span class="voice-add-icon" aria-hidden="true">+</span>
   `;
@@ -886,7 +1303,7 @@ function resetVoiceDraft() {
   revokePendingPreviewUrl();
   refs.voicePreviewAudio.removeAttribute("src");
   refs.voicePreviewAudio.load();
-  refs.voiceSourceStatus.textContent = "请选择一段音频（支持 WAV、FLAC、MP3、OGG、M4A），或者录制一段新的音频。";
+  refs.voiceSourceStatus.textContent = t("modal.voiceStatus");
   refs.voiceConfirmBtn.disabled = true;
 }
 
@@ -903,7 +1320,7 @@ function appendEmotionPreset(preset) {
 
 function renderEmotionPresets() {
   refs.emotionPresetBar.innerHTML = "";
-  EMOTION_PRESETS.forEach((preset) => {
+  getEmotionPresets().forEach((preset) => {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "preset-btn";
@@ -921,7 +1338,7 @@ function getSpeechSpeedPreset(value) {
 }
 
 function formatSpeechSpeedValue(value) {
-  return getSpeechSpeedPreset(value).label;
+  return t(getSpeechSpeedPreset(value).labelKey);
 }
 
 function buildStyleInstruction(...parts) {
@@ -937,7 +1354,7 @@ function updateMeta(meta) {
   state.modelMeta = meta;
   refs.deviceBadge.textContent = `${meta.device} / ${meta.dtype}`;
   refs.generateBtn.disabled = false;
-  refs.generateBtn.textContent = "生成音频";
+  setGenerateButtonText("btn.generate");
   setGenerateButtonBusy(false);
 }
 
@@ -986,10 +1403,10 @@ function buildGeneratePayload() {
 
 async function runDoctor() {
   try {
-    setWorkerState("环境检查中", "busy");
-    setStartupState("正在检查运行环境", "正在确认依赖、模型目录和 Python worker 是否就绪。", "检查中", "busy");
+    setWorkerState("state.checking", "busy");
+    setStartupState("", "", "badge.checking", "busy");
     const result = await window.studioApi.doctor();
-    setWorkerState("待初始化", "idle");
+    setWorkerState("state.pendingInit", "idle");
 
     const missing = Object.entries(result.modules)
       .filter(([, info]) => !info.ok)
@@ -997,11 +1414,11 @@ async function runDoctor() {
 
     if (missing.length === 0) {
       addLog("环境检查通过，VoxCPM2 依赖已就绪。", "success");
-      setStartupState("环境检查通过", "依赖和路径都已就绪，接下来会自动选择设备并加载模型。", "检查通过", "idle");
+      setStartupState("", "", "badge.checkPassed", "idle");
       setDiagnosticPanel(false);
     } else {
       addLog(`环境检查发现缺少依赖：${missing.join(", ")}`, "error");
-      setStartupState("自动启动失败", `检测到缺少依赖：${missing.join(", ")}。请展开诊断详情查看。`, "需要诊断", "error");
+      setStartupState("", "", "badge.needsDiagnosis", "error");
       setDiagnosticPanel(true);
     }
 
@@ -1011,9 +1428,9 @@ async function runDoctor() {
       result
     };
   } catch (error) {
-    setWorkerState("检查失败", "error");
+    setWorkerState("state.checkFailed", "error");
     addLog(error.message, "error");
-    setStartupState("自动启动失败", error.message, "需要诊断", "error");
+    setStartupState("", "", "badge.needsDiagnosis", "error");
     setDiagnosticPanel(true);
     return {
       ok: false,
@@ -1390,7 +1807,7 @@ async function stopActiveRecording() {
           type: activeRecorder.mimeType || "audio/webm"
         });
         if (!blob.size) {
-          refs.voiceSourceStatus.textContent = "没有录到有效音频，请重试。";
+          refs.voiceSourceStatus.textContent = t("voiceStatus.empty");
           refs.voiceRecordBtn.disabled = false;
           refs.voiceStopBtn.disabled = true;
           resolve();
@@ -1406,13 +1823,13 @@ async function stopActiveRecording() {
         state.pendingVoicePreviewUrl = URL.createObjectURL(wavPreviewBlob);
         refs.voicePreviewAudio.src = state.pendingVoicePreviewUrl;
         refs.voicePreviewAudio.load();
-        refs.voiceSourceStatus.textContent = "录音已准备好，确认后会加入音色列表。";
+        refs.voiceSourceStatus.textContent = t("voiceStatus.recordReady");
         refs.voiceRecordBtn.disabled = false;
         refs.voiceStopBtn.disabled = true;
         syncVoiceConfirmState();
         resolve();
       } catch (error) {
-        refs.voiceSourceStatus.textContent = `录音处理失败：${error.message}`;
+        refs.voiceSourceStatus.textContent = t("voiceStatus.processFailed", { message: error.message });
         refs.voiceRecordBtn.disabled = false;
         refs.voiceStopBtn.disabled = true;
         reject(error);
@@ -1421,7 +1838,7 @@ async function stopActiveRecording() {
 
     activeRecorder.mediaRecorder.onerror = (event) => {
       activeRecorder.stream.getTracks().forEach((track) => track.stop());
-      refs.voiceSourceStatus.textContent = `录音失败：${event.error?.message || "未知错误"}`;
+      refs.voiceSourceStatus.textContent = t("voiceStatus.recordFailed", { message: event.error?.message || "unknown error" });
       refs.voiceRecordBtn.disabled = false;
       refs.voiceStopBtn.disabled = true;
       reject(event.error || new Error("Recording failed."));
@@ -1433,10 +1850,10 @@ async function stopActiveRecording() {
 
 async function runDoctor() {
   try {
-    setWorkerState("环境检查中", "busy");
-    setStartupState("正在检查运行环境", "正在确认依赖、模型目录和 Python worker 是否就绪。", "检查中", "busy");
+    setWorkerState("state.checking", "busy");
+    setStartupState("", "", "badge.checking", "busy");
     const result = await window.studioApi.doctor();
-    setWorkerState("待初始化", "idle");
+    setWorkerState("state.pendingInit", "idle");
 
     const missing = Object.entries(result.modules)
       .filter(([, info]) => !info.ok)
@@ -1444,11 +1861,11 @@ async function runDoctor() {
 
     if (missing.length === 0) {
       addLog("环境检查通过，VoxCPM2 依赖已就绪。", "success");
-      setStartupState("环境检查通过", "依赖和路径都已就绪，接下来会自动选择设备并加载模型。", "检查通过", "idle");
+      setStartupState("", "", "badge.checkPassed", "idle");
       setDiagnosticPanel(false);
     } else {
       addLog(`环境检查发现缺少依赖：${missing.join(", ")}`, "error");
-      setStartupState("自动启动失败", `检测到缺少依赖：${missing.join(", ")}。请展开诊断详情查看。`, "需要诊断", "error");
+      setStartupState("", "", "badge.needsDiagnosis", "error");
       setDiagnosticPanel(true);
     }
 
@@ -1458,9 +1875,9 @@ async function runDoctor() {
       result
     };
   } catch (error) {
-    setWorkerState("检查失败", "error");
+    setWorkerState("state.checkFailed", "error");
     addLog(error.message, "error");
-    setStartupState("自动启动失败", error.message, "需要诊断", "error");
+    setStartupState("", "", "badge.needsDiagnosis", "error");
     setDiagnosticPanel(true);
     return {
       ok: false,
@@ -1478,12 +1895,12 @@ async function initializeModel() {
   try {
     state.isInitializing = true;
     refs.initializeBtn.disabled = true;
-    refs.initializeBtn.textContent = "加载中...";
+    setInitializeButtonText("btn.loading");
     refs.generateBtn.disabled = true;
-    refs.generateBtn.textContent = "加载中...";
+    setGenerateButtonText("btn.loading");
     setGenerateButtonBusy(true);
-    setWorkerState("模型加载中", "busy");
-    setStartupState("正在加载模型", "正在自动选择 CUDA 或 CPU，并初始化 VoxCPM2。", "加载中", "busy");
+    setWorkerState("state.loadingModel", "busy");
+    setStartupState("", "", "badge.loading", "busy");
 
     await ensureModelAssetsReady(false);
 
@@ -1494,31 +1911,22 @@ async function initializeModel() {
 
     const meta = await window.studioApi.initialize();
     updateMeta(meta);
-    setWorkerState("模型已就绪", "ready");
+    setWorkerState("state.ready", "ready");
     addLog(`VoxCPM2 加载完成，设备 ${meta.device}，耗时 ${meta.loadSeconds}s`, "success");
-    setStartupState(
-      "模型已就绪",
-      meta.device === "cuda"
-        ? "已自动检测到 CUDA，并完成 VoxCPM2 加载。"
-        : meta.device === "mps"
-          ? "已自动检测到 Apple Silicon（MPS 加速），并完成 VoxCPM2 加载。"
-          : `当前未使用 CUDA，已自动回退到 ${meta.device.toUpperCase()} 并完成加载。`,
-      meta.device.toUpperCase(),
-      "ready"
-    );
+    setStartupState("", "", meta.device.toUpperCase(), "ready");
     setDiagnosticPanel(false);
   } catch (error) {
-    setWorkerState("加载失败", "error");
+    setWorkerState("state.loadFailed", "error");
     addLog(error.message, "error");
-    setStartupState("模型加载失败", error.message, "需要诊断", "error");
+    setStartupState("", "", "badge.needsDiagnosis", "error");
     setDiagnosticPanel(true);
     refs.generateBtn.disabled = true;
-    refs.generateBtn.textContent = "加载中...";
+    setGenerateButtonText("btn.loading");
     setGenerateButtonBusy(true);
   } finally {
     state.isInitializing = false;
     refs.initializeBtn.disabled = false;
-    refs.initializeBtn.textContent = "重新加载模型";
+    setInitializeButtonText("btn.reloadModel");
   }
 }
 
@@ -1528,29 +1936,29 @@ async function generateAudio() {
   }
 
   if (!state.modelMeta?.ready) {
-    addLog("请先加载模型。", "error");
+    addLog(t("log.loadModelFirst"), "error");
     return;
   }
 
   try {
     state.isGenerating = true;
     refs.generateBtn.disabled = true;
-    refs.generateBtn.textContent = "生成中...";
+    setGenerateButtonText("btn.generating");
     setGenerateButtonBusy(true);
     showGenerateProgress(0);
-    setWorkerState("推理中", "busy");
+    setWorkerState("state.inferring", "busy");
 
     const result = await window.studioApi.generate(buildGeneratePayload());
     applyResult(result);
-    setWorkerState("模型已就绪", "ready");
-    addLog(`生成完成，已自动保存到：${result.outputPath}`, "success");
+    setWorkerState("state.ready", "ready");
+    addLog(t("log.savedTo", { path: result.outputPath }), "success");
   } catch (error) {
-    setWorkerState("生成失败", "error");
+    setWorkerState("state.generateFailed", "error");
     addLog(error.message, "error");
   } finally {
     state.isGenerating = false;
     refs.generateBtn.disabled = false;
-    refs.generateBtn.textContent = "生成音频";
+    setGenerateButtonText("btn.generate");
     setGenerateButtonBusy(false);
     hideGenerateProgress();
   }
@@ -1558,14 +1966,14 @@ async function generateAudio() {
 
 async function autoInitializeOnStartup() {
   addLog("启动完成，开始自动检查环境。", "info");
-  setStartupState("正在准备模型环境", "应用会自动检测设备并尝试加载 VoxCPM2。", "启动中", "busy");
+  setStartupState("", "", "badge.starting", "busy");
 
   try {
     await ensureModelAssetsReady(false);
   } catch (error) {
-    setWorkerState("模型下载失败", "error");
+    setWorkerState("state.downloadFailed", "error");
     addLog(error.message, "error");
-    setStartupState("模型下载失败", error.message, "下载失败", "error");
+    setStartupState("", "", "badge.downloadFailed", "error");
     return;
   }
 
@@ -1587,16 +1995,20 @@ async function continueStartupAfterRuntimeReady() {
 
 async function bootstrap() {
   collectRefs();
+  applyUiLanguage(uiLanguage);
   setDiagnosticPanel(false);
-  setStartupState("正在准备模型环境", "应用会自动检测设备并尝试加载 VoxCPM2。", "启动中", "busy");
+  setStartupState("", "", "badge.starting", "busy");
   renderEmotionPresets();
   refs.generateBtn.disabled = true;
-  refs.generateBtn.textContent = "加载中...";
+  setGenerateButtonText("btn.loading");
   setGenerateButtonBusy(true);
   refs.speechSpeedValue.textContent = formatSpeechSpeedValue(refs.speechSpeedInput.value);
   refs.audioSpeedValue.textContent = formatSpeedValue(refs.audioSpeedInput.value);
   refs.resultAudio.playbackRate = getAudioPlaybackRate(refs.audioSpeedInput.value);
 
+  document.querySelectorAll(".lang-btn").forEach((button) => {
+    button.addEventListener("click", () => applyUiLanguage(button.dataset.lang));
+  });
   refs.doctorBtn.addEventListener("click", runDoctor);
   refs.initializeBtn.addEventListener("click", initializeModel);
   refs.generateBtn.addEventListener("click", generateAudio);
@@ -1654,8 +2066,7 @@ async function bootstrap() {
     revokePendingPreviewUrl();
     refs.voicePreviewAudio.src = window.studioApi.toFileUrl(filePath);
     refs.voicePreviewAudio.load();
-    refs.voiceSourceStatus.textContent =
-      "已选择上传音频，确认后会加入音色列表。";
+    refs.voiceSourceStatus.textContent = t("voiceStatus.uploaded");
     syncVoiceConfirmState();
   });
   refs.voiceRecordBtn.addEventListener("click", async () => {
@@ -1692,22 +2103,21 @@ async function bootstrap() {
       mediaRecorder.start();
       refs.voiceRecordBtn.disabled = true;
       refs.voiceStopBtn.disabled = false;
-      refs.voiceSourceStatus.textContent =
-        "正在录音，完成后点击“停止录音”。";
+      refs.voiceSourceStatus.textContent = t("voiceStatus.recording");
       syncVoiceConfirmState();
     } catch (error) {
-      refs.voiceSourceStatus.textContent = `录音失败：${error.message}`;
+      refs.voiceSourceStatus.textContent = t("voiceStatus.recordFailed", { message: error.message });
     }
   });
   refs.voiceStopBtn.addEventListener("click", stopActiveRecording);
   refs.voiceConfirmBtn.addEventListener("click", async () => {
     const name = refs.voiceNameInput.value.trim();
     if (!name) {
-      refs.voiceSourceStatus.textContent = "请先输入音色名称。";
+      refs.voiceSourceStatus.textContent = t("voiceStatus.nameRequired");
       return;
     }
     if (Array.from(name).length > 6) {
-      refs.voiceSourceStatus.textContent = "音色名称请控制在 6 个字以内。";
+      refs.voiceSourceStatus.textContent = t("voiceStatus.nameTooLong");
       return;
     }
 
@@ -1724,7 +2134,7 @@ async function bootstrap() {
           audioBytes: state.pendingVoiceBytes
         });
       } else {
-        refs.voiceSourceStatus.textContent = "请先上传音频或录制一段音频。";
+        refs.voiceSourceStatus.textContent = t("voiceStatus.sourceRequired");
         return;
       }
 
@@ -1735,7 +2145,7 @@ async function bootstrap() {
       refs.voiceModal.classList.add("hidden");
       resetVoiceDraft();
     } catch (error) {
-      refs.voiceSourceStatus.textContent = `添加失败：${error.message}`;
+      refs.voiceSourceStatus.textContent = t("voiceStatus.addFailed", { message: error.message });
     }
   });
   refs.deleteVoiceConfirmBtn.addEventListener("click", async () => {
@@ -1755,7 +2165,7 @@ async function bootstrap() {
       }
       renderVoiceList();
     } catch (error) {
-      refs.deleteVoiceMessage.textContent = `删除失败：${error.message}`;
+      refs.deleteVoiceMessage.textContent = t("deleteVoice.failed", { message: error.message });
     }
   });
 
@@ -1795,26 +2205,21 @@ async function bootstrap() {
 
     if (event.name === "status") {
       if (event.payload.state === "ready") {
-        setWorkerState("模型已就绪", "ready");
+        setWorkerState("state.ready", "ready");
         refs.generateBtn.disabled = false;
-        refs.generateBtn.textContent = "生成音频";
+        setGenerateButtonText("btn.generate");
         setGenerateButtonBusy(false);
       } else if (event.payload.state === "loading") {
-        setWorkerState("模型加载中", "busy");
-        setStartupState(
-          "正在加载模型",
-          event.payload.message || "正在初始化 VoxCPM2。",
-          "加载中",
-          "busy"
-        );
+        setWorkerState("state.loadingModel", "busy");
+        setStartupState("", "", "badge.loading", "busy");
         refs.generateBtn.disabled = true;
-        refs.generateBtn.textContent = "加载中...";
+        setGenerateButtonText("btn.loading");
         setGenerateButtonBusy(true);
       } else if (event.payload.state === "stopped") {
-        setWorkerState("已停止", "idle");
-        setStartupState("服务已停止", "Python worker 已停止运行。", "已停止", "idle");
+        setWorkerState("state.stopped", "idle");
+        setStartupState("", "", "badge.stopped", "idle");
         refs.generateBtn.disabled = true;
-        refs.generateBtn.textContent = "加载中...";
+        setGenerateButtonText("btn.loading");
         setGenerateButtonBusy(true);
       }
       if (event.payload.message) {
