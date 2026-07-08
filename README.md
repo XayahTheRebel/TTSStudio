@@ -1,5 +1,7 @@
 # Lipex-TTS
 
+> **All TTS models in one place**
+
 一个基于 **Electron + Node.js + Python Worker** 的本地桌面 TTS 应用，调用本地 `OpenBMB/VoxCPM2` 模型完成文本转语音、音色设计与声音克隆。
 
 ---
