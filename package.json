@@ -1,6 +1,6 @@
 {
   "name": "lipex-tts",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Lipex-TTS desktop app for local VoxCPM2 inference via Node.js and Python Shell.",
   "main": "electron/main.js",
   "scripts": {
