@@ -1,4 +1,10 @@
+<p align="center">
+  <img src="icon.png" alt="VoxCPM Studio logo" width="128" />
+</p>
+
 # VoxCPM Studio
+
+[English](README.en.md) | 简体中文
 
 `VoxCPM Studio` 是一个本地桌面 TTS 应用，使用 `Electron + Node.js + python-shell + Python worker` 调用本地 `VoxCPM2` 模型。
 
@@ -14,8 +20,19 @@
 - `Design` 模式：前后端已接通，UI 已支持
 - `Clone` 模式：前后端已接入，但本地烟雾测试还没有稳定跑通，需要继续验证
 - 桌面应用：可启动，可加载本地模型，可生成并保存音频
+- 生成的音频会自动保存到 `outputs` 目录
+- 音频生成过程中界面会实时显示进度条
 
 如果你只是想快速跑起来，先测 `Auto` 模式最稳。
+
+## 平台支持
+
+应用同时支持 **Windows** 和 **macOS**：
+
+- **Windows**：CUDA（NVIDIA 显卡）或 CPU
+- **macOS**：Apple Silicon 自动使用 **MPS** 加速，Intel Mac 回退到 CPU
+
+设备选择是自动的：`cuda → mps → cpu`。
 
 ## 项目结构
 
@@ -39,26 +56,24 @@
 
 ## 环境约定
 
-项目默认优先使用下面这个 Python：
+应用按下面顺序解析 Python 解释器：
 
-`C:\Users\24509\anaconda3\envs\tts-backend-py311\python.exe`
+1. 应用设置里保存的 `pythonPath`
+2. 项目虚拟环境：`.venv/Scripts/python.exe`（Windows）或 `.venv/bin/python3`（macOS/Linux）
+3. 名为 `tts-backend-py311` 的 conda 环境（如果存在）
+4. 系统 `python`（Windows）或 `python3`（macOS/Linux）
 
-如果它不存在，则会按下面顺序回退：
-
-1. `./.venv/Scripts/python.exe`
-2. 系统 `python`
-
-当前 Electron 主进程里的默认路径配置在 [electron/main.js](/x:/TTSStudio/electron/main.js)。
+当前 Electron 主进程里的默认路径配置在 [electron/main.js](electron/main.js)。
 
 ## 安装
 
 先安装 Node 依赖：
 
-```powershell
-npm.cmd install
+```bash
+npm install
 ```
 
-再安装后端依赖：
+### 后端依赖 — Windows
 
 ```powershell
 powershell.exe -ExecutionPolicy Bypass -File .\scripts\install-backend.ps1
@@ -70,15 +85,35 @@ powershell.exe -ExecutionPolicy Bypass -File .\scripts\install-backend.ps1
 powershell.exe -ExecutionPolicy Bypass -File .\scripts\install-backend.ps1 -TorchTarget cpu
 ```
 
-## 启动
+### 后端依赖 — macOS
 
-直接启动桌面应用：
-
-```powershell
-npm.cmd start
+```bash
+pip3 install voxcpm modelscope funasr datasets simplejson sortedcontainers
 ```
 
-或者：
+然后检查环境：
+
+```bash
+python3 backend/worker.py --doctor
+```
+
+输出里 `allCoreDepsReady: true` 表示后端就绪。
+
+### 模型权重
+
+首次启动时应用会自动把 `openbmb/VoxCPM2`（约 4.6 GB）下载到 `models/VoxCPM2-HF`，优先走 `hf-mirror.com` 镜像，失败后回退官方源。也可以手动下载：
+
+```bash
+python3 backend/download_model.py --repo-id openbmb/VoxCPM2 --local-dir models/VoxCPM2-HF --endpoint https://hf-mirror.com
+```
+
+## 启动
+
+```bash
+npm start
+```
+
+Windows 上也可以：
 
 ```powershell
 powershell.exe -ExecutionPolicy Bypass -File .\scripts\start-app.ps1
@@ -126,14 +161,8 @@ A young woman, gentle and sweet voice, slightly smiling, British accent
 
 检查后端环境：
 
-```powershell
-python backend/worker.py --doctor
-```
-
-如果你想显式使用当前推荐 Python：
-
-```powershell
-& 'C:\Users\24509\anaconda3\envs\tts-backend-py311\python.exe' backend/worker.py --doctor
+```bash
+python3 backend/worker.py --doctor
 ```
 
 ## 音频格式说明
@@ -145,15 +174,11 @@ python backend/worker.py --doctor
 
 这是为了绕开当前环境里对 `mp3` 解码链的不确定性。系统级 `ffmpeg` 目前没有作为这个项目的默认依赖。
 
-## 已验证结果
+## 输出行为
 
-项目里已经有几份本地烟雾测试输出：
-
-- `outputs/smoke-auto.wav`
-- `outputs/voxcpm-smoke.wav`
-- `outputs/voxcpm-worker-smoke.wav`
-
-这些文件可以作为“模型已成功生成过音频”的快速佐证。
+- 每次生成的音频会**自动保存**到 `outputs` 目录，文件名带时间戳
+- 生成按钮下方会实时显示生成进度条；应用初始化时会用一段短样例校准本机推理速度，按“语音单位”（中文字、英文词、数字、停顿分别加权）估算每次生成的真实进度和预计耗时，并在每次生成后自适应修正校准值
+- 结果菜单里的“另存为”仍可把音频额外导出到任意位置
 
 ## 已知问题
 
@@ -165,4 +190,4 @@ python backend/worker.py --doctor
 
 更完整的接力信息、风险和下一步建议见：
 
-- [docs/HANDOFF.md](/x:/TTSStudio/docs/HANDOFF.md)
+- [docs/HANDOFF.md](docs/HANDOFF.md)

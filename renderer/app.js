@@ -152,6 +152,8 @@ function collectRefs() {
     "audioSpeedValue",
     "voiceList",
     "generateBtn",
+    "generateProgress",
+    "generateProgressFill",
     "resultAudio",
     "resultMenuBtn",
     "resultMenu",
@@ -221,6 +223,26 @@ function setStartupState(_title, _description, badgeText, variant = "idle") {
 
 function setGenerateButtonBusy(isBusy) {
   refs.generateBtn.classList.toggle("generate-btn-busy", isBusy);
+}
+
+function showGenerateProgress(percent) {
+  refs.generateProgress.classList.remove("hidden");
+  refs.generateProgressFill.style.width = `${Math.max(0, Math.min(100, percent))}%`;
+}
+
+function hideGenerateProgress() {
+  refs.generateProgress.classList.add("hidden");
+  refs.generateProgressFill.style.width = "0%";
+}
+
+function handleGenerateProgressEvent(payload = {}) {
+  if (!state.isGenerating || !Number.isFinite(payload.percent)) {
+    return;
+  }
+  const percent = Math.round(payload.percent);
+  showGenerateProgress(percent);
+  refs.generateBtn.textContent = `生成中 ${percent}%`;
+  setWorkerState(`推理中 ${percent}%`, "busy");
 }
 
 function setRuntimeSpeedText(speedText = "") {
@@ -1478,7 +1500,9 @@ async function initializeModel() {
       "模型已就绪",
       meta.device === "cuda"
         ? "已自动检测到 CUDA，并完成 VoxCPM2 加载。"
-        : `当前未使用 CUDA，已自动回退到 ${meta.device.toUpperCase()} 并完成加载。`,
+        : meta.device === "mps"
+          ? "已自动检测到 Apple Silicon（MPS 加速），并完成 VoxCPM2 加载。"
+          : `当前未使用 CUDA，已自动回退到 ${meta.device.toUpperCase()} 并完成加载。`,
       meta.device.toUpperCase(),
       "ready"
     );
@@ -1513,12 +1537,13 @@ async function generateAudio() {
     refs.generateBtn.disabled = true;
     refs.generateBtn.textContent = "生成中...";
     setGenerateButtonBusy(true);
+    showGenerateProgress(0);
     setWorkerState("推理中", "busy");
 
     const result = await window.studioApi.generate(buildGeneratePayload());
     applyResult(result);
     setWorkerState("模型已就绪", "ready");
-    addLog(`生成完成：${result.outputPath}`, "success");
+    addLog(`生成完成，已自动保存到：${result.outputPath}`, "success");
   } catch (error) {
     setWorkerState("生成失败", "error");
     addLog(error.message, "error");
@@ -1527,6 +1552,7 @@ async function generateAudio() {
     refs.generateBtn.disabled = false;
     refs.generateBtn.textContent = "生成音频";
     setGenerateButtonBusy(false);
+    hideGenerateProgress();
   }
 }
 
@@ -1754,6 +1780,17 @@ async function bootstrap() {
 
     if (event.name === "runtime-install") {
       handleRuntimeInstallEvent(event.payload);
+    }
+
+    if (event.name === "progress") {
+      handleGenerateProgressEvent(event.payload);
+    }
+
+    if (event.name === "generate-plan") {
+      if (state.isGenerating && Number.isFinite(event.payload?.estimatedSeconds)) {
+        showGenerateProgress(0);
+        addLog(`本次预计生成时长约 ${event.payload.estimatedSeconds}s（基于启动时的速度校准）`, "info");
+      }
     }
 
     if (event.name === "status") {
