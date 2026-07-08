@@ -1,3 +1,25 @@
+# Lipex-TTS 发布说明
+
+## v0.1.2 — macOS 支持
+
+- **安装包**：`Lipex-TTS-0.1.2-arm64.dmg`（Apple Silicon）/ `Lipex-TTS-0.1.2-x64.dmg`（Intel）
+- **平台**：macOS（Apple Silicon 自动使用 MPS 加速，Intel 使用 CPU）
+
+### macOS 安装步骤
+
+1. 下载对应芯片的 dmg，拖动 `Lipex-TTS` 到「应用程序」
+2. 安装包未经 Apple 公证，首次打开请**右键点击应用 → 打开**（或在「系统设置 → 隐私与安全性」中允许）
+3. macOS 版不需要安装后端运行时，但需要本机有 Python 3 及依赖：
+
+   ```bash
+   pip3 install voxcpm modelscope funasr datasets simplejson sortedcontainers
+   ```
+
+4. 首次启动会自动下载 VoxCPM2 模型（约 4.6 GB）到用户数据目录，随后自动加载
+5. 界面语言可在中文 / English / 日本語 之间切换
+
+---
+
 # Lipex-TTS v0.1.0 发布说明
 
 ## 下载
