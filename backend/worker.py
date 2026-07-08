@@ -3,6 +3,7 @@ import importlib
 import json
 import logging
 import os
+import re
 import sys
 import tempfile
 import time
@@ -29,6 +30,9 @@ STATE: dict[str, Any] = {
     "pydub": None,
     "settings": {},
     "meta": {},
+    "calibration": None,
+    "progress_plan": None,
+    "tqdm_last": None,
 }
 
 SUPPORTED_LANGUAGES = [
@@ -125,6 +129,52 @@ def respond(request_id: str, ok: bool, data: Any = None, error: str | None = Non
     emit({"type": "response", "id": request_id, "ok": ok, "data": data, "error": error})
 
 
+def install_tqdm_progress_bridge() -> None:
+    """Mirror tqdm progress (used inside VoxCPM generation) as JSON events.
+
+    VoxCPM drives its generation loop with tqdm, which only writes an ANSI
+    progress bar to stderr. The Electron UI cannot render that, so we hook
+    tqdm.update and emit structured progress events over stdout instead.
+    """
+    try:
+        from tqdm import tqdm as tqdm_cls
+    except Exception:  # noqa: BLE001
+        return
+
+    original_update = tqdm_cls.update
+
+    def update(self, n=1):  # noqa: ANN001
+        result = original_update(self, n)
+        total = getattr(self, "total", None)
+        if total:
+            STATE["tqdm_last"] = {"n": int(self.n), "total": int(total)}
+            # Prefer the calibrated per-request estimate over tqdm's raw
+            # total, which is only the max-token cap and finishes early.
+            plan = STATE.get("progress_plan") or {}
+            estimated = plan.get("estimatedSteps")
+            if estimated:
+                # tqdm's total is the model's hard step cap for this text;
+                # never let our estimate exceed it.
+                percent = min(99, int(self.n / min(estimated, int(total)) * 100))
+            else:
+                percent = int(self.n / total * 100)
+            if percent != getattr(self, "_last_emitted_percent", -1):
+                self._last_emitted_percent = percent
+                emit_event(
+                    "progress",
+                    {
+                        "current": int(self.n),
+                        "total": int(estimated or total),
+                        "percent": percent,
+                        "calibrated": bool(estimated),
+                        "desc": str(getattr(self, "desc", "") or ""),
+                    },
+                )
+        return result
+
+    tqdm_cls.update = update
+
+
 def safe_version(module_name: str) -> dict[str, Any]:
     try:
         module = importlib.import_module(module_name)
@@ -202,6 +252,87 @@ def action_doctor(payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+CALIBRATION_SAMPLE_TEXT = "这是测试。"
+
+# Speech-unit weights, tuned against measured VoxCPM2 step counts: one CJK
+# char and one Latin word each cost ~1 generation step, so they get nearly
+# equal weight. Keeping the rate language-invariant is what lets a single
+# adaptive stepsPerUnit work when the user alternates Chinese and English.
+CJK_RE = re.compile(r"[぀-ヿ㐀-䶿一-鿿가-힯]")
+LATIN_WORD_RE = re.compile(r"[A-Za-z]+(?:['’][A-Za-z]+)?")
+DIGIT_RE = re.compile(r"\d")
+PAUSE_RE = re.compile(r"[，。！？；：,.!?;:、]")
+
+
+def estimate_speech_units(text: str) -> float:
+    cjk = len(CJK_RE.findall(text))
+    latin_words = len(LATIN_WORD_RE.findall(text))
+    digits = len(DIGIT_RE.findall(text))
+    pauses = len(PAUSE_RE.findall(text))
+    return max(cjk + latin_words * 1.2 + digits * 1.2 + pauses * 0.5, 1.0)
+
+
+def calibrate_generation_speed(model) -> dict[str, Any] | None:
+    """Measure this device's generation speed with a short 5-char sample.
+
+    Runs once during initialization. The measured steps-per-char ratio is
+    used to estimate the real total step count of each generation request,
+    so the progress bar reflects actual completion instead of the raw
+    max-token cap (which always finishes early).
+    """
+    try:
+        emit_event("status", {"state": "loading", "message": "正在校准本机推理速度..."})
+        STATE["progress_plan"] = None
+        STATE["tqdm_last"] = None
+        started = time.perf_counter()
+        model.generate(
+            text=CALIBRATION_SAMPLE_TEXT,
+            cfg_value=DEFAULTS["cfg_value"],
+            inference_timesteps=DEFAULTS["inference_timesteps"],
+            min_len=DEFAULTS["min_len"],
+            max_len=200,
+            normalize=False,
+            denoise=False,
+            retry_badcase=False,
+        )
+        seconds = max(time.perf_counter() - started, 1e-6)
+        steps = int((STATE.get("tqdm_last") or {}).get("n") or 0)
+        if steps <= 0:
+            return None
+        units = estimate_speech_units(CALIBRATION_SAMPLE_TEXT)
+        # Each generation carries a fixed start/EOS overhead of roughly
+        # min_len steps; strip it from the per-unit rate and add it back
+        # when estimating, so short samples don't inflate long-text estimates.
+        fixed_overhead = int(DEFAULTS["min_len"])
+        variable_steps = max(steps - fixed_overhead, 1)
+        calibration = {
+            "sampleText": CALIBRATION_SAMPLE_TEXT,
+            "sampleUnits": units,
+            "steps": steps,
+            "seconds": round(seconds, 2),
+            "fixedOverheadSteps": fixed_overhead,
+            "stepsPerUnit": round(variable_steps / units, 3),
+            "stepsPerSecond": round(steps / seconds, 3),
+        }
+        emit_event(
+            "log",
+            {
+                "level": "success",
+                "message": (
+                    f"推理速度校准完成：{calibration['stepsPerSecond']} 步/秒，"
+                    f"约 {calibration['stepsPerUnit']} 步/语音单位（{calibration['seconds']}s），"
+                    f"后续会随每次生成自动修正"
+                ),
+            },
+        )
+        return calibration
+    except Exception as exc:  # noqa: BLE001
+        emit_event("log", {"level": "info", "message": f"速度校准跳过：{exc}"})
+        return None
+    finally:
+        STATE["tqdm_last"] = None
+
+
 def action_init(payload: dict[str, Any]) -> dict[str, Any]:
     if STATE["ready"]:
         return STATE["meta"]
@@ -233,10 +364,14 @@ def action_init(payload: dict[str, Any]) -> dict[str, Any]:
         settings["modelDir"],
         load_denoiser=False,
         local_files_only=True,
-        device=device,
         optimize=False,
     )
+    # voxcpm 2.x auto-selects the device internally (cuda -> mps -> cpu);
+    # read it back so the reported device/dtype matches reality.
+    device = str(getattr(getattr(model, "tts_model", None), "device", device) or device)
     load_seconds = round(time.perf_counter() - started, 2)
+
+    calibration = calibrate_generation_speed(model)
 
     dtype_name = "bfloat16" if device.startswith("cuda") else "float32"
     sample_rate = getattr(model.tts_model, "sample_rate", 48000)
@@ -247,12 +382,14 @@ def action_init(payload: dict[str, Any]) -> dict[str, Any]:
             "torch": torch_mod,
             "soundfile": soundfile_mod,
             "settings": settings,
+            "calibration": calibration,
             "meta": {
                 "ready": True,
                 "device": device,
                 "dtype": dtype_name,
                 "samplingRate": sample_rate,
                 "loadSeconds": load_seconds,
+                "calibration": calibration,
                 "languageCount": len(SUPPORTED_LANGUAGES),
                 "languages": SUPPORTED_LANGUAGES,
                 "voiceDesignPresets": VOICE_DESIGN_PRESETS,
@@ -475,6 +612,30 @@ def action_generate(payload: dict[str, Any]) -> dict[str, Any]:
                 compose_instruction(req.language, req.clone_style),
             )
 
+    # Estimate this request's real step count from the startup calibration,
+    # so progress reflects actual completion rather than the max-token cap.
+    calibration = STATE.get("calibration") or {}
+    steps_per_unit = calibration.get("stepsPerUnit") or 0
+    fixed_overhead = int(calibration.get("fixedOverheadSteps") or 0)
+    estimated_steps = (
+        max(fixed_overhead + int(steps_per_unit * estimate_speech_units(req.text)), 8)
+        if steps_per_unit
+        else None
+    )
+    STATE["tqdm_last"] = None
+    STATE["progress_plan"] = {"estimatedSteps": estimated_steps} if estimated_steps else None
+    if estimated_steps:
+        steps_per_second = calibration.get("stepsPerSecond") or 0
+        emit_event(
+            "generate-plan",
+            {
+                "estimatedSteps": estimated_steps,
+                "estimatedSeconds": round(estimated_steps / steps_per_second, 1)
+                if steps_per_second
+                else None,
+            },
+        )
+
     emit_event(
         "log",
         {
@@ -489,10 +650,12 @@ def action_generate(payload: dict[str, Any]) -> dict[str, Any]:
         wav = apply_speed_ratio(wav, req.speed_ratio)
         soundfile_mod.write(output_path, wav, sample_rate)
     finally:
+        STATE["progress_plan"] = None
         if temp_reference_wav and os.path.exists(temp_reference_wav):
             os.remove(temp_reference_wav)
     elapsed = round(time.perf_counter() - started, 2)
     duration_seconds = round(len(wav) / sample_rate, 2)
+    update_calibration_from_run(req.text, elapsed)
 
     emit_event(
         "log",
@@ -518,6 +681,29 @@ def action_generate(payload: dict[str, Any]) -> dict[str, Any]:
         "settings": defaults,
         "meta": STATE["meta"],
     }
+
+
+def update_calibration_from_run(text: str, elapsed_seconds: float) -> None:
+    """Refine calibration with the observed cost of a real generation.
+
+    An exponential moving average keeps the estimate converging toward the
+    user's actual language mix and voice mode, so the progress bar gets
+    more accurate with every clip generated.
+    """
+    calibration = STATE.get("calibration")
+    steps = int((STATE.get("tqdm_last") or {}).get("n") or 0)
+    if not calibration or steps <= 0:
+        return
+    fixed_overhead = int(calibration.get("fixedOverheadSteps") or 0)
+    units = estimate_speech_units(text)
+    observed_rate = max(steps - fixed_overhead, 1) / units
+    observed_speed = steps / max(elapsed_seconds, 1e-6)
+    calibration["stepsPerUnit"] = round(
+        0.5 * (calibration.get("stepsPerUnit") or observed_rate) + 0.5 * observed_rate, 3
+    )
+    calibration["stepsPerSecond"] = round(
+        0.5 * (calibration.get("stepsPerSecond") or observed_speed) + 0.5 * observed_speed, 3
+    )
 
 
 def action_shutdown(_payload: dict[str, Any]) -> dict[str, Any]:
@@ -566,6 +752,7 @@ def process_line(line: str) -> bool:
 
 
 def run_stdio() -> int:
+    install_tqdm_progress_bridge()
     for raw_line in sys.stdin:
         if not process_line(raw_line):
             return 0

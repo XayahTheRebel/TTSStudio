@@ -115,7 +115,23 @@ models/VoxCPM2-HF/
 npm start
 ```
 
-或者：
+输出里 `allCoreDepsReady: true` 表示后端就绪。
+
+### 模型权重
+
+首次启动时应用会自动把 `openbmb/VoxCPM2`（约 4.6 GB）下载到 `models/VoxCPM2-HF`，优先走 `hf-mirror.com` 镜像，失败后回退官方源。也可以手动下载：
+
+```bash
+python3 backend/download_model.py --repo-id openbmb/VoxCPM2 --local-dir models/VoxCPM2-HF --endpoint https://hf-mirror.com
+```
+
+## 启动
+
+```bash
+npm start
+```
+
+Windows 上也可以：
 
 ```powershell
 powershell.exe -ExecutionPolicy Bypass -File .\scripts\start-app.ps1

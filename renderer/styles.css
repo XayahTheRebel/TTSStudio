@@ -151,6 +151,42 @@ code {
   flex-wrap: wrap;
 }
 
+.device-language-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px;
+  align-items: start;
+}
+
+.device-language-panel {
+  min-width: 0;
+}
+
+.language-card {
+  display: flex;
+  align-items: center;
+}
+
+.language-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.lang-btn {
+  opacity: 0.55;
+}
+
+.lang-btn:hover {
+  opacity: 0.85;
+}
+
+.lang-btn-active,
+.lang-btn-active:hover {
+  opacity: 1;
+  border-color: rgba(0, 0, 0, 0.35);
+}
+
 .pill,
 .surface-btn {
   min-height: 50px;
@@ -368,6 +404,22 @@ summary:focus-visible {
 .generate-btn-busy {
   background: var(--accent-soft);
   color: #0c1403;
+}
+
+.generate-progress {
+  grid-column: 1 / -1;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.generate-progress-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 3px;
+  background: var(--accent);
+  transition: width 200ms ease;
 }
 
 .result-card {

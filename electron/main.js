@@ -52,13 +52,23 @@ const RUNTIME_TARGETS = {
     torchIndex: "https://download.pytorch.org/whl/cu130"
   }
 };
-const CONDA_PY311 = path.join(
-  process.env.USERPROFILE || "C:\\Users\\24509",
-  "anaconda3",
-  "envs",
-  "tts-backend-py311",
-  "python.exe"
-);
+const IS_WINDOWS = process.platform === "win32";
+const CONDA_PY311 = IS_WINDOWS
+  ? path.join(
+      process.env.USERPROFILE || "C:\\Users\\24509",
+      "anaconda3",
+      "envs",
+      "tts-backend-py311",
+      "python.exe"
+    )
+  : path.join(
+      process.env.HOME || "",
+      "miniconda3",
+      "envs",
+      "tts-backend-py311",
+      "bin",
+      "python3"
+    );
 
 function isPackagedApp() {
   return app.isPackaged;
@@ -84,7 +94,9 @@ function getBundledPythonPath() {
   if (!isPackagedApp()) {
     return "";
   }
-  return path.join(getRuntimeRootDir(), "python", "python.exe");
+  return IS_WINDOWS
+    ? path.join(getRuntimeRootDir(), "python", "python.exe")
+    : path.join(getRuntimeRootDir(), "python", "bin", "python3");
 }
 
 function getInstallDir() {
@@ -266,7 +278,9 @@ function resolvePythonPath(storedPath) {
     return storedPath;
   }
 
-  const venvPython = path.join(ROOT_DIR, ".venv", "Scripts", "python.exe");
+  const venvPython = IS_WINDOWS
+    ? path.join(ROOT_DIR, ".venv", "Scripts", "python.exe")
+    : path.join(ROOT_DIR, ".venv", "bin", "python3");
   if (fs.existsSync(venvPython)) {
     return venvPython;
   }
@@ -275,7 +289,8 @@ function resolvePythonPath(storedPath) {
     return CONDA_PY311;
   }
 
-  return "python";
+  // macOS/Linux ship `python3`; bare `python` frequently does not exist.
+  return IS_WINDOWS ? "python" : "python3";
 }
 
 function readVoiceLibrary() {
@@ -539,6 +554,20 @@ async function detectNvidiaSmiInfo() {
 }
 
 async function detectRuntimeRecommendation() {
+  if (!IS_WINDOWS) {
+    const isAppleSilicon = process.platform === "darwin" && process.arch === "arm64";
+    return {
+      recommendedTarget: "cpu",
+      gpuNames: isAppleSilicon ? ["Apple Silicon (MPS)"] : [],
+      cudaVersion: "",
+      driverVersion: "",
+      runtimeTargets: RUNTIME_TARGETS,
+      reason: isAppleSilicon
+        ? "Detected Apple Silicon; PyTorch will use the MPS backend automatically."
+        : "CUDA runtimes are Windows-only here; CPU runtime is recommended."
+    };
+  }
+
   try {
     const output = await runPowerShell(
       "Get-CimInstance Win32_VideoController | Select-Object -ExpandProperty Name"
@@ -676,7 +705,9 @@ class OmniVoiceService {
       pythonOptions: ["-u"],
       env: {
         ...process.env,
-        PYTHONIOENCODING: "utf-8"
+        PYTHONIOENCODING: "utf-8",
+        // On Apple Silicon, fall back to CPU for the few ops MPS does not support.
+        PYTORCH_ENABLE_MPS_FALLBACK: "1"
       },
       stderrParser: (line) => line
     });
@@ -1020,15 +1051,14 @@ class OmniVoiceService {
   }
 
   async generate(payload) {
-    const previewDir = getPreviewOutputDir();
-    ensureDir(previewDir);
-    clearPreviewOutputs();
+    // Write results straight into the output directory so every generation
+    // is kept automatically instead of living in a throwaway preview folder.
+    ensureDir(this.settings.outputDir || getDefaultOutputDir());
 
     return this.request("generate", {
       ...payload,
       runtimeSettings: {
-        ...this.settings,
-        previewOutputDir: previewDir
+        ...this.settings
       }
     });
   }
