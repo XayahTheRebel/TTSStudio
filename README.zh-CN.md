@@ -1,4 +1,4 @@
-# Lipex-TTS
+# TTSStudio
 
 > **All TTS models in one place**
 
@@ -20,7 +20,7 @@
 
 ## 系统要求
 
-- Windows 10/11（x64），或 macOS（Apple Silicon / Intel，安装包见 [Releases](https://github.com/XayahTheRebel/Lipex-TTS/releases)）
+- Windows 10/11（x64），或 macOS（Apple Silicon / Intel，安装包见 [Releases](https://github.com/XayahTheRebel/TTSStudio/releases)）
 - [Node.js](https://nodejs.org/)（推荐 LTS，源码运行时需要）
 - Python 3.11（Windows 推荐通过 Anaconda 创建 `tts-backend-py311` 环境；macOS 使用系统 `python3`）
 - 可选：NVIDIA GPU + CUDA（用于 GPU 加速；Apple Silicon 自动使用 MPS）
@@ -142,7 +142,7 @@ powershell.exe -ExecutionPolicy Bypass -File .\scripts\start-app.ps1
 推荐首测文本：
 
 ```text
-Hello world from Lipex-TTS.
+Hello world from TTSStudio.
 ```
 
 ---

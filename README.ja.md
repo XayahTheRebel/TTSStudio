@@ -1,14 +1,14 @@
 <p align="center">
-  <img src="icon.png" alt="Lipex-TTS logo" width="128" />
+  <img src="icon.png" alt="TTSStudio logo" width="128" />
 </p>
 
-# Lipex-TTS
+# TTSStudio
 
 > **All TTS models in one place**
 
 [English](README.md) | [简体中文](README.zh-CN.md) | 日本語
 
-`Lipex-TTS` は、`Electron + Node.js + python-shell + Python ワーカー` で構築されたローカルデスクトップ TTS アプリで、ローカルの `VoxCPM2` モデルを実行します。
+`TTSStudio` は、`Electron + Node.js + python-shell + Python ワーカー` で構築されたローカルデスクトップ TTS アプリで、ローカルの `VoxCPM2` モデルを実行します。
 
 本プロジェクトは OmniVoice から `OpenBMB/VoxCPM` に移行済みで、既定では以下のローカルリソースを使用します：
 
@@ -122,7 +122,7 @@ npm start
 最初のテストテキストの例：
 
 ```text
-Hello world from Lipex-TTS.
+Hello world from TTSStudio.
 ```
 
 ## モード説明

@@ -4,17 +4,17 @@
 
 English | [简体中文](README.zh-CN.md) | [日本語](README.ja.md)
 
-`Lipex-TTS` is a local desktop TTS application built with **Electron + Node.js + a Python worker**, running the local `OpenBMB/VoxCPM2` model for text-to-speech, voice design and voice cloning.
+`TTSStudio` is a local desktop TTS application built with **Electron + Node.js + a Python worker**, running the local `OpenBMB/VoxCPM2` model for text-to-speech, voice design and voice cloning.
 
 ---
 
 ## Download
 
-Prebuilt installers are on the [Releases](https://github.com/XayahTheRebel/Lipex-TTS/releases) page:
+Prebuilt installers are on the [Releases](https://github.com/XayahTheRebel/TTSStudio/releases) page:
 
-- **Windows 10/11 (x64)**: `Lipex-TTS Setup <version>.exe` (NSIS installer)
-- **macOS Apple Silicon**: `Lipex-TTS-<version>-arm64.dmg`
-- **macOS Intel**: `Lipex-TTS-<version>-x64.dmg`
+- **Windows 10/11 (x64)**: `TTSStudio Setup <version>.exe` (NSIS installer)
+- **macOS Apple Silicon**: `TTSStudio-<version>-arm64.dmg`
+- **macOS Intel**: `TTSStudio-<version>-x64.dmg`
 
 The macOS build is not notarized — on first launch, **right-click the app → Open** (or allow it in System Settings → Privacy & Security).
 
@@ -36,7 +36,7 @@ The macOS build is not notarized — on first launch, **right-click the app → 
 ## Project structure
 
 ```
-Lipex-TTS/
+TTSStudio/
 ├── electron/                 # Electron main process
 │   ├── main.js               # window, IPC, Python worker lifecycle
 │   └── preload.js            # renderer API bridge
@@ -63,8 +63,8 @@ Lipex-TTS/
 ### 1. Clone and install Node dependencies
 
 ```bash
-git clone https://github.com/XayahTheRebel/Lipex-TTS.git
-cd Lipex-TTS
+git clone https://github.com/XayahTheRebel/TTSStudio.git
+cd TTSStudio
 npm install
 ```
 
