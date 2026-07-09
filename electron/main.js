@@ -104,9 +104,13 @@ function getInstallDir() {
 }
 
 function getDefaultModelDir() {
-  return isPackagedApp()
+  if (!isPackagedApp()) {
+    return path.join(ROOT_DIR, "models", "VoxCPM2-HF");
+  }
+  // On macOS the .app bundle should stay read-only; keep weights in userData.
+  return IS_WINDOWS
     ? path.join(getInstallDir(), "models", "VoxCPM2-HF")
-    : path.join(ROOT_DIR, "models", "VoxCPM2-HF");
+    : path.join(app.getPath("userData"), "models", "VoxCPM2-HF");
 }
 
 function getDefaultOutputDir() {
@@ -229,7 +233,8 @@ function migrateSettings(rawSettings) {
     if (
       !next.modelDir ||
       isSameOrInsidePath(next.modelDir, ROOT_DIR) ||
-      isSameOrInsidePath(next.modelDir, legacyUserDataModelDir)
+      // On macOS the default model dir legitimately lives under userData/models.
+      (IS_WINDOWS && isSameOrInsidePath(next.modelDir, legacyUserDataModelDir))
     ) {
       next.modelDir = defaults.modelDir;
       changed = true;
@@ -768,7 +773,9 @@ class OmniVoiceService {
       runtimeDir: getRuntimeRootDir(),
       pythonPath: isRuntimeReady() ? getBundledPythonPath() : "",
       exists: isRuntimeReady(),
-      packagedApp: isPackagedApp(),
+      // The bundled-runtime installer is Windows-only (PowerShell); macOS
+      // packaged builds resolve a system python3 instead, so never gate on it.
+      packagedApp: isPackagedApp() && IS_WINDOWS,
       installing: Boolean(this.runtimeInstallPromise),
       runtimeTargets: RUNTIME_TARGETS,
       runtime: meta
@@ -780,7 +787,7 @@ class OmniVoiceService {
   }
 
   async installBackendRuntime(target = "cpu") {
-    if (!isPackagedApp()) {
+    if (!isPackagedApp() || !IS_WINDOWS) {
       return {
         ...this.getRuntimeStatus(),
         skipped: true
@@ -1113,6 +1120,15 @@ function createWindow() {
 
   service.bindWindow(window);
   window.loadFile(path.join(RENDERER_DIR, "index.html"));
+}
+
+if (process.platform === "darwin") {
+  app.setAboutPanelOptions({
+    applicationName: "Lipex-TTS",
+    applicationVersion: app.getVersion(),
+    credits: "All TTS models in one place",
+    copyright: "MIT License"
+  });
 }
 
 app.whenReady().then(() => {
