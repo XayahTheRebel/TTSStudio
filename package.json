@@ -1,7 +1,7 @@
 {
   "name": "lipex-tts",
-  "version": "0.1.0",
-  "description": "Lipex-TTS desktop app for local VoxCPM2 inference via Node.js and Python Shell.",
+  "version": "0.1.2",
+  "description": "All TTS models in one place — local desktop TTS studio for VoxCPM2 via Electron and Python.",
   "main": "electron/main.js",
   "scripts": {
     "start": "electron .",
@@ -72,6 +72,22 @@
           ]
         }
       ]
+    },
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ],
+      "category": "public.app-category.utilities",
+      "icon": "icon.png"
+    },
+    "dmg": {
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
     },
     "nsis": {
       "oneClick": false,
