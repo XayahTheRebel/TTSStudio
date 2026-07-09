@@ -1,8 +1,8 @@
-# Lipex-TTS v0.1.1 发布说明
+# TTSStudio v0.1.1 发布说明
 
 ## 下载
 
-- **安装包**：`release/Lipex-TTS Setup 0.1.1.exe`
+- **安装包**：`release/TTSStudio Setup 0.1.1.exe`
 - **版本**：0.1.1
 - **平台**：Windows 10/11 x64
 
@@ -18,7 +18,7 @@
 
 ## 安装步骤
 
-1. 双击运行 `Lipex-TTS Setup 0.1.1.exe`
+1. 双击运行 `TTSStudio Setup 0.1.1.exe`
 2. 按安装向导完成安装
 3. 首次启动时，应用会检测你的 GPU 并提示安装后端运行环境
 4. 选择 **CUDA 版**（推荐，需 NVIDIA 显卡）或 **CPU 版**（兼容所有设备）
@@ -31,7 +31,7 @@
 安装包不包含模型权重。请将 `VoxCPM2` 模型文件放到安装目录的 `models/VoxCPM2-HF/` 下：
 
 ```text
-Lipex-TTS/
+TTSStudio/
 ├── models/
 │   └── VoxCPM2-HF/
 │       ├── config.json
