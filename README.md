@@ -1,8 +1,4 @@
-<p align="center">
-  <img src="icon.png" alt="Lipex-TTS logo" width="128" />
-</p>
-
-# Lipex-TTS
+# TTSStudio
 
 > **All TTS models in one place**
 
@@ -118,7 +114,7 @@ npm start
 Suggested first test text:
 
 ```text
-Hello world from Lipex-TTS.
+Hello world from TTSStudio.
 ```
 
 ---
